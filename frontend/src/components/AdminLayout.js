@@ -20,7 +20,7 @@ const AdminLayout = () => {
   const menuItems = [
     { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/menu', icon: Menu, label: 'Quản lý Menu' },
-    { path: '/admin/tables', icon: ShoppingBag, label: 'Quản lý Bàn' },
+    { path: '/admin/tables', icon: Grid3x3, label: 'Quản lý Bàn' },
     { path: '/admin/orders', icon: ShoppingBag, label: 'Đơn hàng' },
     { path: '/admin/settings', icon: Settings, label: 'Cài đặt' },
   ];
