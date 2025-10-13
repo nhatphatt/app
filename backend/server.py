@@ -522,6 +522,77 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         total_menu_items=total_items
     )
 
+# ============ TABLES ROUTES ============
+
+@api_router.get("/tables", response_model=List[Table])
+async def get_tables(current_user: dict = Depends(get_current_user)):
+    tables = await db.tables.find(
+        {"store_id": current_user["store_id"]},
+        {"_id": 0}
+    ).sort("table_number", 1).to_list(1000)
+    return tables
+
+@api_router.post("/tables", response_model=Table)
+async def create_table(input: TableCreate, current_user: dict = Depends(get_current_user)):
+    # Check if table number already exists
+    existing = await db.tables.find_one({
+        "store_id": current_user["store_id"],
+        "table_number": input.table_number
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Table number already exists")
+    
+    # Get store slug for QR code URL
+    store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0})
+    
+    table_id = str(uuid.uuid4())
+    # Generate QR code URL with table parameter
+    base_url = os.environ.get('FRONTEND_URL', 'https://menutech-hub.preview.emergentagent.com')
+    qr_code_url = f"{base_url}/menu/{store['slug']}?table={table_id}"
+    
+    table_doc = {
+        "id": table_id,
+        "store_id": current_user["store_id"],
+        "table_number": input.table_number,
+        "capacity": input.capacity,
+        "qr_code_url": qr_code_url,
+        "status": "available",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.tables.insert_one(table_doc)
+    return Table(**table_doc)
+
+@api_router.put("/tables/{table_id}", response_model=Table)
+async def update_table(table_id: str, input: TableUpdate, current_user: dict = Depends(get_current_user)):
+    update_data = {k: v for k, v in input.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No data to update")
+    
+    result = await db.tables.update_one(
+        {"id": table_id, "store_id": current_user["store_id"]},
+        {"$set": update_data}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Table not found")
+    
+    table = await db.tables.find_one({"id": table_id}, {"_id": 0})
+    return table
+
+@api_router.delete("/tables/{table_id}")
+async def delete_table(table_id: str, current_user: dict = Depends(get_current_user)):
+    result = await db.tables.delete_one({"id": table_id, "store_id": current_user["store_id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Table not found")
+    return {"message": "Table deleted"}
+
+@api_router.get("/tables/{table_id}", response_model=Table)
+async def get_table_by_id(table_id: str):
+    """Public endpoint to get table info by ID (for QR code scanning)"""
+    table = await db.tables.find_one({"id": table_id}, {"_id": 0})
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    return table
+
 # ============ APP SETUP ============
 
 app.include_router(api_router)
