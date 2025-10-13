@@ -392,7 +392,7 @@ const CustomerMenu = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="table">Số bàn (Tuỳ chọn)</Label>
+              <Label htmlFor="table">Số bàn</Label>
               <Input
                 id="table"
                 value={customerInfo.table_number}
@@ -401,7 +401,13 @@ const CustomerMenu = () => {
                 }
                 placeholder="Bàn 5"
                 data-testid="table-number-input"
+                disabled={!!tableInfo}
               />
+              {tableInfo && (
+                <p className="text-xs text-gray-500">
+                  Đã tự động nhận diện từ mã QR
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="note">Ghi chú</Label>
