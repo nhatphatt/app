@@ -148,6 +148,24 @@ class DashboardStats(BaseModel):
     pending_orders: int
     total_menu_items: int
 
+class TableCreate(BaseModel):
+    table_number: str
+    capacity: Optional[int] = 4
+
+class Table(BaseModel):
+    id: str
+    store_id: str
+    table_number: str
+    capacity: int
+    qr_code_url: str
+    status: str  # available, occupied, reserved
+    created_at: str
+
+class TableUpdate(BaseModel):
+    table_number: Optional[str] = None
+    capacity: Optional[int] = None
+    status: Optional[str] = None
+
 # ============ AUTH HELPERS ============
 
 def hash_password(password: str) -> str:
