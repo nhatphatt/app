@@ -334,11 +334,14 @@ async def create_public_order(store_slug: str, input: OrderCreate):
     
     total = sum(item.price * item.quantity for item in input.items)
     
+    # Auto-detect table_number if not provided (from table_id param will be sent from frontend)
+    table_number = input.table_number or ""
+    
     order_id = str(uuid.uuid4())
     order_doc = {
         "id": order_id,
         "store_id": store["id"],
-        "table_number": input.table_number,
+        "table_number": table_number,
         "customer_name": input.customer_name,
         "customer_phone": input.customer_phone,
         "items": [item.model_dump() for item in input.items],
