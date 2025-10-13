@@ -9,6 +9,7 @@ import AdminLogin from '@/pages/admin/AdminLogin';
 import AdminRegister from '@/pages/admin/AdminRegister';
 import AdminDashboard from '@/pages/admin/AdminDashboard';
 import MenuManagement from '@/pages/admin/MenuManagement';
+import TablesManagement from '@/pages/admin/TablesManagement';
 import OrdersManagement from '@/pages/admin/OrdersManagement';
 import StoreSettings from '@/pages/admin/StoreSettings';
 import AdminLayout from '@/components/AdminLayout';
