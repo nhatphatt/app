@@ -36,6 +36,7 @@ function App() {
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="menu" element={<MenuManagement />} />
+            <Route path="tables" element={<TablesManagement />} />
             <Route path="orders" element={<OrdersManagement />} />
             <Route path="settings" element={<StoreSettings />} />
           </Route>
