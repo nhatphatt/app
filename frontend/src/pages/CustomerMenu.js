@@ -27,6 +27,9 @@ const API_BASE = `${BACKEND_URL}/api`;
 
 const CustomerMenu = () => {
   const { storeSlug } = useParams();
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search));
+  const tableId = searchParams.get('table');
+  
   const [loading, setLoading] = useState(true);
   const [store, setStore] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -37,6 +40,7 @@ const CustomerMenu = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [tableInfo, setTableInfo] = useState(null);
 
   const [customerInfo, setCustomerInfo] = useState({
     customer_name: '',
@@ -47,7 +51,10 @@ const CustomerMenu = () => {
 
   useEffect(() => {
     fetchMenu();
-  }, [storeSlug]);
+    if (tableId) {
+      fetchTableInfo();
+    }
+  }, [storeSlug, tableId]);
 
   const fetchMenu = async () => {
     try {
@@ -59,6 +66,16 @@ const CustomerMenu = () => {
       toast.error('Không tìm thấy cửa hàng');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTableInfo = async () => {
+    try {
+      const response = await axios.get(`${API_BASE}/tables/${tableId}`);
+      setTableInfo(response.data);
+      setCustomerInfo(prev => ({ ...prev, table_number: response.data.table_number }));
+    } catch (error) {
+      console.error('Could not fetch table info:', error);
     }
   };
 
