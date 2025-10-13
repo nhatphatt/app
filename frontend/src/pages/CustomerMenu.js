@@ -179,7 +179,17 @@ const CustomerMenu = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{store.name}</h1>
-            {store.address && (
+            {tableInfo && (
+              <div className="flex items-center gap-2 mt-1">
+                <Badge className="bg-emerald-600 text-white">
+                  {tableInfo.table_number}
+                </Badge>
+                <span className="text-sm text-gray-600">
+                  ({tableInfo.capacity} chỗ)
+                </span>
+              </div>
+            )}
+            {store.address && !tableInfo && (
               <p className="text-sm text-gray-600">{store.address}</p>
             )}
           </div>
