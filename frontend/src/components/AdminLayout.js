@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Menu, ShoppingBag, Settings, LogOut, ChevronLeft } from 'lucide-react';
+import { LayoutDashboard, Menu, ShoppingBag, Settings, LogOut, ChevronLeft, Grid3x3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { logout, getAuthUser } from '@/utils/auth';
 import { toast } from 'sonner';
