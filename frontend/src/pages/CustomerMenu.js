@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import axios from "axios";
 import PaymentFlow from "@/components/PaymentFlow";
 import OrderStatusTracker from "@/components/OrderStatusTracker";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_BASE = `${BACKEND_URL}/api`;
@@ -95,8 +96,24 @@ const CustomerMenu = () => {
       try {
         const parsed = JSON.parse(savedCart);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCart(parsed);
-          toast.info(`Đã khôi phục ${parsed.length} món trong giỏ hàng`);
+          // Validate and filter cart items - ensure they have required properties
+          const validItems = parsed.filter((item) => {
+            return (
+              item && item.id && item.name && typeof item.price === "number"
+            );
+          });
+
+          if (validItems.length > 0) {
+            setCart(validItems);
+            toast.info(`Đã khôi phục ${validItems.length} món trong giỏ hàng`);
+          }
+
+          // If some items were invalid, log and clean up
+          if (validItems.length < parsed.length) {
+            console.warn(
+              `Removed ${parsed.length - validItems.length} invalid items from cart`,
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to restore cart:", error);
@@ -185,12 +202,29 @@ const CustomerMenu = () => {
   };
 
   const addToCart = (item) => {
+    // Validate item has required properties
+    if (!item || !item.id || !item.name) {
+      console.error("Invalid item:", item);
+      toast.error("Không thể thêm món vào giỏ hàng");
+      return;
+    }
+
     const existingItem = cart.find((i) => i.id === item.id);
-    // Use discounted price if promotion exists
-    const effectivePrice = item.has_promotion
-      ? item.discounted_price
-      : item.price;
-    const cartItem = { ...item, price: effectivePrice };
+
+    // Use discounted price if promotion exists, otherwise use regular price
+    // Ensure we have a valid price
+    const effectivePrice =
+      item.has_promotion && item.discounted_price
+        ? item.discounted_price
+        : item.price || 0;
+
+    const cartItem = {
+      ...item,
+      price: effectivePrice,
+      // Ensure these properties exist
+      name: item.name,
+      id: item.id,
+    };
 
     if (existingItem) {
       setCart(
@@ -226,7 +260,11 @@ const CustomerMenu = () => {
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    return cart.reduce((sum, item) => {
+      const price = item.price || 0;
+      const quantity = item.quantity || 0;
+      return sum + price * quantity;
+    }, 0);
   };
 
   const handleCheckout = () => {
@@ -390,7 +428,7 @@ const CustomerMenu = () => {
                           <div className="flex-1">
                             <h4 className="font-medium">{item.name}</h4>
                             <p className="text-sm text-gray-600">
-                              {item.price.toLocaleString("vi-VN")} đ
+                              {(item.price || 0).toLocaleString("vi-VN")} đ
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -748,6 +786,15 @@ const CustomerMenu = () => {
           </Button>
         </DialogContent>
       </Dialog>
+
+      {/* AI Chatbot Widget */}
+      <ChatbotWidget
+        storeSlug={storeSlug}
+        customerPhone={customerInfo.customer_phone}
+        tableId={tableId}
+        cart={cart}
+        onAddToCart={addToCart}
+      />
     </div>
   );
 };

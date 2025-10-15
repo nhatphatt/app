@@ -68,6 +68,14 @@ tags_metadata = [
         "name": "Promotions",
         "description": "Quản lý chương trình khuyến mãi và giảm giá",
     },
+    {
+        "name": "AI Recommendations",
+        "description": "Hệ thống AI gợi ý món ăn thông minh dựa trên hành vi khách hàng",
+    },
+    {
+        "name": "AI Chatbot",
+        "description": "Chatbot AI thông minh cho tư vấn và đặt món tự động",
+    },
 ]
 
 app = FastAPI(
@@ -1273,6 +1281,265 @@ async def update_payment_method(
     method = await db.payment_methods.find_one({"id": method_id}, {"_id": 0})
     return method
 
+# ============ AI RECOMMENDATION SYSTEM ============
+# Note: Old recommendation system removed, now using Gemini AI in chatbot
+
+class RecommendationContext(BaseModel):
+    customer_phone: Optional[str] = None
+    cart_items: Optional[List[str]] = []
+    limit: Optional[int] = 5
+
+class InteractionTrack(BaseModel):
+    store_id: str
+    customer_phone: Optional[str] = None
+    item_id: str
+    interaction_type: str  # viewed, cart_added, purchased
+    session_id: Optional[str] = None
+    order_id: Optional[str] = None
+    quantity: Optional[int] = 1
+    price_paid: Optional[float] = 0
+    context: Optional[dict] = {}
+
+# DEPRECATED: Old recommendation endpoints - now using Gemini AI in chatbot
+# Kept for reference, remove later if not needed
+
+# @api_router.get("/recommendations/{store_slug}", tags=["AI Recommendations"])
+# async def get_recommendations(...):
+#     """Old recommendation system - replaced by Gemini AI chatbot"""
+#     pass
+
+# @api_router.post("/recommendations/track", tags=["AI Recommendations"])
+# async def track_recommendation_interaction(...):
+#     """Old tracking system - no longer needed"""
+#     pass
+
+@api_router.get("/recommendations/trending/{store_slug}", tags=["AI Recommendations"])
+async def get_trending_items(
+    store_slug: str,
+    period: str = "hourly",
+    limit: int = 10
+):
+    """
+    Get trending menu items for a store
+
+    Parameters:
+    - period: hourly, daily, or weekly
+    - limit: Number of items to return
+    """
+    # Get store
+    store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
+    if not store:
+        raise HTTPException(404, "Store not found")
+
+    # Get trending items
+    trending = await db.trending_items.find({
+        "store_id": store['id'],
+        "period_type": period
+    }, {"_id": 0}).sort("metrics.trend_score", -1).limit(limit).to_list(limit)
+
+    # Enrich with item details
+    result = []
+    for trend in trending:
+        item = await db.menu_items.find_one({"id": trend['item_id']}, {"_id": 0})
+        if item:
+            result.append({
+                "item": item,
+                "metrics": trend['metrics'],
+                "period": {
+                    "type": trend['period_type'],
+                    "start": trend['period_start'],
+                    "end": trend.get('period_end')
+                }
+            })
+
+    return {
+        "store_id": store['id'],
+        "period": period,
+        "trending_items": result
+    }
+
+@api_router.get("/recommendations/profile/{store_slug}/{customer_phone}", tags=["AI Recommendations"])
+async def get_customer_profile(store_slug: str, customer_phone: str):
+    """
+    Get customer profile and preferences (for debugging/admin)
+    """
+    # Get store
+    store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
+    if not store:
+        raise HTTPException(404, "Store not found")
+
+    # Get profile
+    profile = await db.customer_profiles.find_one({
+        "store_id": store['id'],
+        "phone": customer_phone
+    }, {"_id": 0})
+
+    if not profile:
+        return {
+            "exists": False,
+            "message": "Customer profile not found. Will be created after first purchase."
+        }
+
+    return {
+        "exists": True,
+        "profile": profile
+    }
+
+# ============ AI CHATBOT SYSTEM ============
+
+from chatbot_service import ChatbotService
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+    customer_phone: Optional[str] = None
+    table_id: Optional[str] = None
+    cart_items: Optional[list] = None
+
+class ChatAction(BaseModel):
+    action_type: str  # add_to_cart, remove_from_cart, view_detail
+    action_payload: dict
+    session_id: str
+
+@api_router.post("/chatbot/message", tags=["AI Chatbot"])
+async def process_chatbot_message(
+    store_slug: str,
+    input: ChatMessage
+):
+    """
+    Process chatbot message and return AI response
+
+    Query Parameters:
+    - store_slug: Store identifier
+
+    Request Body:
+    - message: User's message text
+    - session_id: Existing session ID (optional, will create new if not provided)
+    - customer_phone: Customer phone number (optional, for personalization)
+    - table_id: Table ID from QR scan (optional)
+
+    Returns AI response with:
+    - session_id: Session identifier for following messages
+    - message: AI response text
+    - rich_content: Structured content (cards, carousels, buttons)
+    - suggested_actions: Quick reply buttons
+    - intent: Detected user intent
+    - confidence: Intent detection confidence score
+
+    Example:
+    ```
+    POST /api/chatbot/message?store_slug=my-restaurant
+    {
+      "message": "Xin chào",
+      "session_id": null
+    }
+    ```
+    """
+    # Get store
+    store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
+    if not store:
+        raise HTTPException(404, "Store not found")
+
+    try:
+        # Initialize chatbot service
+        chatbot = ChatbotService(db)
+
+        # Process message
+        response = await chatbot.process_message(
+            message=input.message,
+            session_id=input.session_id,
+            store_id=store['id'],
+            customer_phone=input.customer_phone,
+            table_id=input.table_id,
+            cart_items=input.cart_items
+        )
+
+        return response
+    except Exception as e:
+        raise HTTPException(500, f"Chatbot error: {str(e)}")
+
+@api_router.post("/chatbot/action", tags=["AI Chatbot"])
+async def handle_chatbot_action(
+    store_slug: str,
+    input: ChatAction
+):
+    """
+    Handle chatbot action (add to cart, remove from cart, view detail)
+
+    Action types:
+    - add_to_cart: Add item to cart
+    - remove_from_cart: Remove item from cart
+    - view_detail: View item details
+
+    Example:
+    ```
+    POST /api/chatbot/action?store_slug=my-restaurant
+    {
+      "action_type": "add_to_cart",
+      "action_payload": {
+        "item_id": "uuid",
+        "quantity": 2
+      },
+      "session_id": "session-uuid"
+    }
+    ```
+    """
+    store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
+    if not store:
+        raise HTTPException(404, "Store not found")
+
+    try:
+        chatbot = ChatbotService(db)
+
+        result = await chatbot.handle_action(
+            action_type=input.action_type,
+            action_payload=input.action_payload,
+            session_id=input.session_id,
+            store_id=store['id']
+        )
+
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"Action error: {str(e)}")
+
+@api_router.get("/chatbot/conversation/{session_id}", tags=["AI Chatbot"])
+async def get_conversation_history(
+    session_id: str,
+    limit: int = 20
+):
+    """
+    Get conversation history for a session
+
+    Parameters:
+    - session_id: Session identifier
+    - limit: Maximum number of messages to return (default: 20)
+
+    Returns:
+    - session_id: Session identifier
+    - messages: List of messages with role, content, timestamp
+    """
+    try:
+        chatbot = ChatbotService(db)
+        history = await chatbot.get_conversation_history(session_id, limit)
+        return history
+    except Exception as e:
+        raise HTTPException(500, f"Error fetching conversation: {str(e)}")
+
+@api_router.delete("/chatbot/conversation/{session_id}", tags=["AI Chatbot"])
+async def close_conversation(session_id: str):
+    """
+    Close a conversation session
+
+    Marks the conversation as completed.
+    """
+    try:
+        from chatbot.conversation_manager import ConversationManager
+        manager = ConversationManager(db)
+        await manager.close_session(session_id)
+        return {"message": "Conversation closed successfully"}
+    except Exception as e:
+        raise HTTPException(500, f"Error closing conversation: {str(e)}")
+
 # ============ APP SETUP ============
 
 app.add_middleware(
@@ -1285,6 +1552,15 @@ app.add_middleware(
 
 app.include_router(api_router)
 
+# ============ BACKGROUND JOBS ============
+# Note: Background jobs removed - no longer needed with Gemini AI
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize application on startup"""
+    print("🚀 Minitake F&B System is ready!")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    """Cleanup on shutdown"""
     client.close()
