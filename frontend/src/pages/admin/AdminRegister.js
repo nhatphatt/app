@@ -47,7 +47,7 @@ const AdminRegister = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-4">
-      <Card className="w-full max-w-md shadow-lg animate-fade-in" data-testid="register-card">
+      <Card className="w-full max-w-md shadow-lg animate-fade-in">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-2">
             <Store className="w-8 h-8 text-white" />
@@ -66,7 +66,6 @@ const AdminRegister = () => {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
-                data-testid="name-input"
               />
             </div>
             <div className="space-y-2">
@@ -78,7 +77,6 @@ const AdminRegister = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                data-testid="email-input"
               />
             </div>
             <div className="space-y-2">
@@ -91,7 +89,6 @@ const AdminRegister = () => {
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
                 minLength={6}
-                data-testid="password-input"
               />
             </div>
             <div className="space-y-2">
@@ -103,7 +100,6 @@ const AdminRegister = () => {
                 value={formData.store_name}
                 onChange={(e) => setFormData({ ...formData, store_name: e.target.value })}
                 required
-                data-testid="store-name-input"
               />
             </div>
             <div className="space-y-2">
@@ -115,7 +111,6 @@ const AdminRegister = () => {
                 value={formData.store_slug}
                 onChange={(e) => setFormData({ ...formData, store_slug: e.target.value.toLowerCase() })}
                 required
-                data-testid="store-slug-input"
               />
               <p className="text-xs text-gray-500">Khách hàng sẽ truy cập: /menu/{formData.store_slug || 'slug-cua-ban'}</p>
             </div>
@@ -123,7 +118,6 @@ const AdminRegister = () => {
               type="submit"
               className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
               disabled={loading}
-              data-testid="register-submit-btn"
             >
               {loading ? (
                 <>
@@ -137,7 +131,7 @@ const AdminRegister = () => {
           </form>
           <div className="mt-6 text-center text-sm">
             <span className="text-gray-600">Đã có tài khoản? </span>
-            <Link to="/admin/login" className="text-emerald-600 hover:text-emerald-700 font-medium" data-testid="login-link">
+            <Link to="/admin/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
               Đăng nhập
             </Link>
           </div>

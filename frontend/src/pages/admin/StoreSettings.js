@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Store } from 'lucide-react';
-import api from '@/utils/api';
-import { toast } from 'sonner';
-import { getAuthUser } from '@/utils/auth';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Store } from "lucide-react";
+import api from "@/utils/api";
+import { toast } from "sonner";
+import { getAuthUser } from "@/utils/auth";
 
 const StoreSettings = () => {
   const [loading, setLoading] = useState(true);
@@ -20,10 +20,10 @@ const StoreSettings = () => {
 
   const fetchStore = async () => {
     try {
-      const response = await api.get('/stores/me');
+      const response = await api.get("/stores/me");
       setStore(response.data);
     } catch (error) {
-      toast.error('Không thể tải thông tin cửa hàng');
+      toast.error("Không thể tải thông tin cửa hàng");
     } finally {
       setLoading(false);
     }
@@ -39,10 +39,10 @@ const StoreSettings = () => {
         phone: store.phone,
         logo: store.logo,
       };
-      await api.put('/stores/me', payload);
-      toast.success('Cập nhật thông tin thành công');
+      await api.put("/stores/me", payload);
+      toast.success("Cập nhật thông tin thành công");
     } catch (error) {
-      toast.error('Không thể cập nhật thông tin');
+      toast.error("Không thể cập nhật thông tin");
     } finally {
       setSaving(false);
     }
@@ -59,9 +59,11 @@ const StoreSettings = () => {
   const menuUrl = `${window.location.origin}/menu/${store.slug}`;
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in" data-testid="store-settings">
+    <div className="p-8 space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Cài đặt Cửa hàng</h1>
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          Cài đặt Cửa hàng
+        </h1>
         <p className="text-gray-600">Quản lý thông tin cửa hàng của bạn</p>
       </div>
 
@@ -83,7 +85,6 @@ const StoreSettings = () => {
                   value={store.name}
                   onChange={(e) => setStore({ ...store, name: e.target.value })}
                   required
-                  data-testid="store-name-input"
                 />
               </div>
               <div className="space-y-2">
@@ -91,8 +92,9 @@ const StoreSettings = () => {
                 <Input
                   id="address"
                   value={store.address}
-                  onChange={(e) => setStore({ ...store, address: e.target.value })}
-                  data-testid="store-address-input"
+                  onChange={(e) =>
+                    setStore({ ...store, address: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -100,25 +102,44 @@ const StoreSettings = () => {
                 <Input
                   id="phone"
                   value={store.phone}
-                  onChange={(e) => setStore({ ...store, phone: e.target.value })}
-                  data-testid="store-phone-input"
+                  onChange={(e) =>
+                    setStore({ ...store, phone: e.target.value })
+                  }
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="logo">Logo URL</Label>
                 <Input
                   id="logo"
-                  value={store.logo}
+                  value={store.logo || ""}
                   onChange={(e) => setStore({ ...store, logo: e.target.value })}
                   placeholder="https://..."
-                  data-testid="store-logo-input"
                 />
+                {store.logo && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 mb-2">Preview:</p>
+                    <img
+                      src={store.logo}
+                      alt="Store Logo Preview"
+                      className="w-32 h-32 object-contain border rounded-lg bg-white p-2"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                        e.target.nextSibling.style.display = "block";
+                      }}
+                    />
+                    <p
+                      className="text-sm text-red-500 mt-2"
+                      style={{ display: "none" }}
+                    >
+                      Không thể tải ảnh từ URL này
+                    </p>
+                  </div>
+                )}
               </div>
               <Button
                 type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-700"
                 disabled={saving}
-                data-testid="save-store-btn"
               >
                 {saving ? (
                   <>
@@ -126,7 +147,7 @@ const StoreSettings = () => {
                     Đang lưu...
                   </>
                 ) : (
-                  'Lưu thay đổi'
+                  "Lưu thay đổi"
                 )}
               </Button>
             </form>
@@ -142,14 +163,13 @@ const StoreSettings = () => {
             <div className="space-y-2">
               <Label>URL Menu của bạn</Label>
               <div className="flex gap-2">
-                <Input value={menuUrl} readOnly className="font-mono text-sm" data-testid="menu-url-display" />
+                <Input value={menuUrl} readOnly className="font-mono text-sm" />
                 <Button
                   variant="outline"
                   onClick={() => {
                     navigator.clipboard.writeText(menuUrl);
-                    toast.success('Đã sao chép URL');
+                    toast.success("Đã sao chép URL");
                   }}
-                  data-testid="copy-url-btn"
                 >
                   Sao chép
                 </Button>
@@ -161,7 +181,7 @@ const StoreSettings = () => {
               <div className="bg-white p-4 rounded-lg border text-center">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-                    menuUrl
+                    menuUrl,
                   )}`}
                   alt="QR Code"
                   className="mx-auto"
@@ -175,8 +195,7 @@ const StoreSettings = () => {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => window.open(menuUrl, '_blank')}
-              data-testid="preview-menu-btn"
+              onClick={() => window.open(menuUrl, "_blank")}
             >
               Xem trước Menu
             </Button>

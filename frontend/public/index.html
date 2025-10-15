@@ -30,10 +30,14 @@
         -->
         <script>
             // Only load visual edit scripts when inside an iframe and visual edits are enabled
-            if (window.self !== window.top && '%REACT_APP_ENABLE_VISUAL_EDITS%' === 'true') {
+            if (
+                window.self !== window.top &&
+                "%REACT_APP_ENABLE_VISUAL_EDITS%" === "true"
+            ) {
                 // Load debug monitor script
-                var debugScript = document.createElement('script');
-                debugScript.src = 'https://assets.emergent.sh/scripts/debug-monitor.js';
+                var debugScript = document.createElement("script");
+                debugScript.src =
+                    "https://assets.emergent.sh/scripts/debug-monitor.js";
                 document.head.appendChild(debugScript);
 
                 // Configure Tailwind
@@ -43,8 +47,8 @@
                 };
 
                 // Load Tailwind CDN
-                var tailwindScript = document.createElement('script');
-                tailwindScript.src = 'https://cdn.tailwindcss.com';
+                var tailwindScript = document.createElement("script");
+                tailwindScript.src = "https://cdn.tailwindcss.com";
                 document.head.appendChild(tailwindScript);
             }
         </script>
@@ -62,53 +66,6 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
-        <a
-            id="emergent-badge"
-            target="_blank"
-            href="https://app.emergent.sh/?utm_source=emergent-badge"
-            style="
-                display: flex !important;
-                align-items: center !important;
-                position: fixed !important;
-                bottom: 20px;
-                right: 20px;
-                text-decoration: none;
-                padding: 6px 10px;
-                font-family: -apple-system, BlinkMacSystemFont,
-                    &quot;Segoe UI&quot;, Roboto, Oxygen, Ubuntu, Cantarell,
-                    &quot;Open Sans&quot;, &quot;Helvetica Neue&quot;,
-                    sans-serif !important;
-                font-size: 12px !important;
-                z-index: 9999 !important;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-                border-radius: 8px !important;
-                background-color: #ffffff !important;
-                border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            "
-        >
-            <div
-                style="display: flex; flex-direction: row; align-items: center"
-            >
-                <img
-                    style="width: 20px; height: 20px; margin-right: 8px"
-                    src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4"
-                />
-                <p
-                    style="
-                        color: #000000;
-                        font-family: -apple-system, BlinkMacSystemFont,
-                            &quot;Segoe UI&quot;, Roboto, Oxygen, Ubuntu,
-                            Cantarell, &quot;Open Sans&quot;,
-                            &quot;Helvetica Neue&quot;, sans-serif !important;
-                        font-size: 12px !important;
-                        align-items: center;
-                        margin-bottom: 0;
-                    "
-                >
-                    Made with Emergent
-                </p>
-            </div>
-        </a>
         <script>
             !(function (t, e) {
                 var o, n, p, r;
@@ -118,7 +75,7 @@
                     (e.init = function (i, s, a) {
                         function g(t, e) {
                             var o = e.split(".");
-                            2 == o.length && ((t = t[o[0]]), (e = o[1])),
+                            (2 == o.length && ((t = t[o[0]]), (e = o[1])),
                                 (t[e] = function () {
                                     t.push(
                                         [e].concat(
@@ -128,9 +85,9 @@
                                             ),
                                         ),
                                     );
-                                });
+                                }));
                         }
-                        ((p = t.createElement("script")).type =
+                        (((p = t.createElement("script")).type =
                             "text/javascript"),
                             (p.crossOrigin = "anonymous"),
                             (p.async = !0),
@@ -142,7 +99,7 @@
                             (r =
                                 t.getElementsByTagName(
                                     "script",
-                                )[0]).parentNode.insertBefore(p, r);
+                                )[0]).parentNode.insertBefore(p, r));
                         var u = e;
                         for (
                             void 0 !== a ? (u = e[a] = []) : (a = "posthog"),

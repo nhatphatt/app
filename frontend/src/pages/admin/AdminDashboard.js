@@ -70,7 +70,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in" data-testid="admin-dashboard">
+    <div className="p-8 space-y-8 animate-fade-in">
       <div>
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
         <p className="text-gray-600">Tổng quan hoạt động cửa hàng</p>
@@ -84,7 +84,6 @@ const AdminDashboard = () => {
               key={index}
               className="overflow-hidden hover:shadow-lg transition-shadow animate-slide-up"
               style={{ animationDelay: `${index * 0.1}s` }}
-              data-testid={stat.testId}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">

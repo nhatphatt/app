@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Clock, User, Phone, Loader2 } from 'lucide-react';
-import api from '@/utils/api';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+} from "@/components/ui/select";
+import { Clock, User, Phone, Loader2 } from "lucide-react";
+import api from "@/utils/api";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { vi } from "date-fns/locale";
 
 const OrdersManagement = () => {
   const [orders, setOrders] = useState([]);
@@ -28,10 +28,10 @@ const OrdersManagement = () => {
 
   const fetchOrders = async () => {
     try {
-      const response = await api.get('/orders');
+      const response = await api.get("/orders");
       setOrders(response.data);
     } catch (error) {
-      toast.error('Không thể tải danh sách đơn hàng');
+      toast.error("Không thể tải danh sách đơn hàng");
     } finally {
       setLoading(false);
     }
@@ -40,20 +40,32 @@ const OrdersManagement = () => {
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       await api.put(`/orders/${orderId}/status`, { status: newStatus });
-      toast.success('Cập nhật trạng thái thành công');
+      toast.success("Cập nhật trạng thái thành công");
       fetchOrders();
     } catch (error) {
-      toast.error('Không thể cập nhật trạng thái');
+      toast.error("Không thể cập nhật trạng thái");
     }
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      pending: { label: 'Chờ xử lý', variant: 'outline', color: 'text-yellow-600' },
-      preparing: { label: 'Đang chuẩn bị', variant: 'outline', color: 'text-blue-600' },
-      ready: { label: 'Sẵn sàng', variant: 'outline', color: 'text-green-600' },
-      completed: { label: 'Hoàn thành', variant: 'outline', color: 'text-gray-600' },
-      cancelled: { label: 'Đã hủy', variant: 'outline', color: 'text-red-600' },
+      pending: {
+        label: "Chờ xử lý",
+        variant: "outline",
+        color: "text-yellow-600",
+      },
+      preparing: {
+        label: "Đang chuẩn bị",
+        variant: "outline",
+        color: "text-blue-600",
+      },
+      ready: { label: "Sẵn sàng", variant: "outline", color: "text-green-600" },
+      completed: {
+        label: "Hoàn thành",
+        variant: "outline",
+        color: "text-gray-600",
+      },
+      cancelled: { label: "Đã hủy", variant: "outline", color: "text-red-600" },
     };
     const config = statusConfig[status] || statusConfig.pending;
     return (
@@ -72,13 +84,15 @@ const OrdersManagement = () => {
   }
 
   return (
-    <div className="p-8 space-y-6 animate-fade-in" data-testid="orders-management">
+    <div className="p-8 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Quản lý Đơn hàng</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            Quản lý Đơn hàng
+          </h1>
           <p className="text-gray-600">Theo dõi và xử lý đơn hàng</p>
         </div>
-        <Button onClick={fetchOrders} variant="outline" data-testid="refresh-orders-btn">
+        <Button onClick={fetchOrders} variant="outline">
           Làm mới
         </Button>
       </div>
@@ -92,7 +106,7 @@ const OrdersManagement = () => {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <Card key={order.id} className="hover:shadow-lg transition-shadow" data-testid={`order-card-${order.id}`}>
+            <Card key={order.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-3">
@@ -101,7 +115,9 @@ const OrdersManagement = () => {
                   </CardTitle>
                   <div className="text-sm text-gray-500 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    {format(new Date(order.created_at), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                    {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", {
+                      locale: vi,
+                    })}
                   </div>
                 </div>
               </CardHeader>
@@ -122,7 +138,8 @@ const OrdersManagement = () => {
                   )}
                   {order.table_number && (
                     <div className="text-gray-600">
-                      Bàn: <span className="font-medium">{order.table_number}</span>
+                      Bàn:{" "}
+                      <span className="font-medium">{order.table_number}</span>
                     </div>
                   )}
                 </div>
@@ -137,7 +154,8 @@ const OrdersManagement = () => {
                           {item.quantity}x {item.name}
                         </span>
                         <span className="font-medium">
-                          {(item.price * item.quantity).toLocaleString('vi-VN')} đ
+                          {(item.price * item.quantity).toLocaleString("vi-VN")}{" "}
+                          đ
                         </span>
                       </div>
                     ))}
@@ -154,20 +172,20 @@ const OrdersManagement = () => {
                 {/* Total & Actions */}
                 <div className="flex items-center justify-between border-t pt-4">
                   <div className="text-xl font-bold text-emerald-600">
-                    Tổng: {order.total.toLocaleString('vi-VN')} đ
+                    Tổng: {order.total.toLocaleString("vi-VN")} đ
                   </div>
                   <div className="flex items-center gap-3">
                     <Select
                       value={order.status}
-                      onValueChange={(value) => handleStatusChange(order.id, value)}
+                      onValueChange={(value) =>
+                        handleStatusChange(order.id, value)
+                      }
                     >
-                      <SelectTrigger className="w-[180px]" data-testid={`status-select-${order.id}`}>
+                      <SelectTrigger className="w-[180px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="pending">Chờ xử lý</SelectItem>
-                        <SelectItem value="preparing">Đang chuẩn bị</SelectItem>
-                        <SelectItem value="ready">Sẵn sàng</SelectItem>
                         <SelectItem value="completed">Hoàn thành</SelectItem>
                         <SelectItem value="cancelled">Đã hủy</SelectItem>
                       </SelectContent>

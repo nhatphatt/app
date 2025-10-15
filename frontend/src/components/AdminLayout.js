@@ -1,28 +1,53 @@
-import React, { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Menu, ShoppingBag, Settings, LogOut, ChevronLeft, Grid3x3 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { logout, getAuthUser } from '@/utils/auth';
-import { toast } from 'sonner';
+import React, { useState, useEffect } from "react";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Menu,
+  ShoppingBag,
+  Settings,
+  LogOut,
+  ChevronLeft,
+  Grid3x3,
+  CreditCard,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { logout, getAuthUser } from "@/utils/auth";
+import { toast } from "sonner";
+import api from "@/utils/api";
 
 const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const user = getAuthUser();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [store, setStore] = useState(null);
+
+  useEffect(() => {
+    fetchStore();
+  }, []);
+
+  const fetchStore = async () => {
+    try {
+      const response = await api.get("/stores/me");
+      setStore(response.data);
+    } catch (error) {
+      console.error("Failed to fetch store:", error);
+    }
+  };
 
   const handleLogout = () => {
     logout();
-    toast.success('Đăng xuất thành công');
-    navigate('/admin/login');
+    toast.success("Đăng xuất thành công");
+    navigate("/admin/login");
   };
 
   const menuItems = [
-    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { path: '/admin/menu', icon: Menu, label: 'Quản lý Menu' },
-    { path: '/admin/tables', icon: Grid3x3, label: 'Quản lý Bàn' },
-    { path: '/admin/orders', icon: ShoppingBag, label: 'Đơn hàng' },
-    { path: '/admin/settings', icon: Settings, label: 'Cài đặt' },
+    { path: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
+    { path: "/admin/menu", icon: Menu, label: "Quản lý Menu" },
+    { path: "/admin/tables", icon: Grid3x3, label: "Quản lý Bàn" },
+    { path: "/admin/orders", icon: ShoppingBag, label: "Đơn hàng" },
+    { path: "/admin/payments", icon: CreditCard, label: "Thanh toán" },
+    { path: "/admin/settings", icon: Settings, label: "Cài đặt" },
   ];
 
   return (
@@ -30,22 +55,49 @@ const AdminLayout = () => {
       {/* Sidebar */}
       <aside
         className={`bg-gradient-to-br from-emerald-600 to-teal-700 text-white transition-all duration-300 ${
-          sidebarOpen ? 'w-64' : 'w-20'
+          sidebarOpen ? "w-64" : "w-20"
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-white/20">
             <div className="flex items-center justify-between">
-              <h1 className={`font-bold text-2xl ${!sidebarOpen && 'hidden'}`}>Minitake</h1>
+              {sidebarOpen && (
+                <div className="flex items-center gap-3">
+                  {store?.logo && (
+                    <img
+                      src={store.logo}
+                      alt={store.name}
+                      className="h-10 w-10 object-contain rounded-lg bg-white/10 p-1"
+                      onError={(e) => {
+                        e.target.style.display = "none";
+                      }}
+                    />
+                  )}
+                  <h1 className="font-bold text-xl">
+                    {store?.name || "Minitake"}
+                  </h1>
+                </div>
+              )}
+              {!sidebarOpen && store?.logo && (
+                <img
+                  src={store.logo}
+                  alt={store?.name}
+                  className="h-8 w-8 object-contain rounded-lg bg-white/10 p-1 mx-auto"
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
+                />
+              )}
               <Button
                 variant="ghost"
                 size="icon"
                 className="text-white hover:bg-white/10"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                data-testid="sidebar-toggle-btn"
               >
-                <ChevronLeft className={`h-5 w-5 transition-transform ${!sidebarOpen && 'rotate-180'}`} />
+                <ChevronLeft
+                  className={`h-5 w-5 transition-transform ${!sidebarOpen && "rotate-180"}`}
+                />
               </Button>
             </div>
           </div>
@@ -56,16 +108,12 @@ const AdminLayout = () => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
               return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
+                <Link key={item.path} to={item.path}>
                   <div
                     className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
-                        ? 'bg-white text-emerald-700 font-medium'
-                        : 'text-white/80 hover:bg-white/10'
+                        ? "bg-white text-emerald-700 font-medium"
+                        : "text-white/80 hover:bg-white/10"
                     }`}
                   >
                     <Icon className="h-5 w-5" />
@@ -88,7 +136,6 @@ const AdminLayout = () => {
               variant="ghost"
               className="w-full text-white hover:bg-white/10 justify-start"
               onClick={handleLogout}
-              data-testid="logout-btn"
             >
               <LogOut className="h-5 w-5" />
               {sidebarOpen && <span className="ml-3">Đăng xuất</span>}

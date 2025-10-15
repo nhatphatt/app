@@ -36,7 +36,7 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-4">
-      <Card className="w-full max-w-md shadow-lg animate-fade-in" data-testid="login-card">
+      <Card className="w-full max-w-md shadow-lg animate-fade-in">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center mb-2">
             <Store className="w-8 h-8 text-white" />
@@ -55,7 +55,6 @@ const AdminLogin = () => {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
-                data-testid="email-input"
               />
             </div>
             <div className="space-y-2">
@@ -67,14 +66,12 @@ const AdminLogin = () => {
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
-                data-testid="password-input"
               />
             </div>
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
               disabled={loading}
-              data-testid="login-submit-btn"
             >
               {loading ? (
                 <>
@@ -88,7 +85,7 @@ const AdminLogin = () => {
           </form>
           <div className="mt-6 text-center text-sm">
             <span className="text-gray-600">Chưa có tài khoản? </span>
-            <Link to="/admin/register" className="text-emerald-600 hover:text-emerald-700 font-medium" data-testid="register-link">
+            <Link to="/admin/register" className="text-emerald-600 hover:text-emerald-700 font-medium">
               Đăng ký ngay
             </Link>
           </div>
