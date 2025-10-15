@@ -72,7 +72,86 @@ const CustomerMenu = () => {
     if (tableId) {
       fetchTableInfo();
     }
+
+    // Restore payment state from localStorage if exists
+    restorePaymentState();
+
+    // Restore cart from localStorage
+    restoreCart();
   }, [storeSlug, tableId]);
+
+  // Save cart to localStorage whenever it changes (if not in payment flow)
+  useEffect(() => {
+    if (cart.length > 0 && !paymentOpen) {
+      localStorage.setItem(`minitake_cart_${storeSlug}`, JSON.stringify(cart));
+    } else if (cart.length === 0 && !paymentOpen) {
+      localStorage.removeItem(`minitake_cart_${storeSlug}`);
+    }
+  }, [cart, paymentOpen, storeSlug]);
+
+  const restoreCart = () => {
+    const savedCart = localStorage.getItem(`minitake_cart_${storeSlug}`);
+    if (savedCart) {
+      try {
+        const parsed = JSON.parse(savedCart);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCart(parsed);
+          toast.info(`Đã khôi phục ${parsed.length} món trong giỏ hàng`);
+        }
+      } catch (error) {
+        console.error("Failed to restore cart:", error);
+        localStorage.removeItem(`minitake_cart_${storeSlug}`);
+      }
+    }
+  };
+
+  // Save payment state to localStorage whenever it changes
+  useEffect(() => {
+    if (currentOrder && paymentOpen) {
+      const paymentState = {
+        currentOrder,
+        cart,
+        customerInfo,
+        paymentOpen: true,
+        timestamp: new Date().getTime(),
+      };
+      localStorage.setItem(
+        `minitake_payment_${storeSlug}`,
+        JSON.stringify(paymentState),
+      );
+    }
+  }, [currentOrder, paymentOpen, cart, customerInfo, storeSlug]);
+
+  const restorePaymentState = () => {
+    const savedState = localStorage.getItem(`minitake_payment_${storeSlug}`);
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        const now = new Date().getTime();
+        // Only restore if less than 30 minutes old
+        if (now - parsed.timestamp < 30 * 60 * 1000) {
+          setCurrentOrder(parsed.currentOrder);
+          setCart(parsed.cart || []);
+          setCustomerInfo(
+            parsed.customerInfo || {
+              customer_name: "",
+              customer_phone: "",
+              table_number: "",
+              note: "",
+            },
+          );
+          setPaymentOpen(true);
+          toast.info("Đã khôi phục thông tin thanh toán");
+        } else {
+          // Clear expired state
+          localStorage.removeItem(`minitake_payment_${storeSlug}`);
+        }
+      } catch (error) {
+        console.error("Failed to restore payment state:", error);
+        localStorage.removeItem(`minitake_payment_${storeSlug}`);
+      }
+    }
+  };
 
   const fetchMenu = async () => {
     try {
@@ -107,6 +186,12 @@ const CustomerMenu = () => {
 
   const addToCart = (item) => {
     const existingItem = cart.find((i) => i.id === item.id);
+    // Use discounted price if promotion exists
+    const effectivePrice = item.has_promotion
+      ? item.discounted_price
+      : item.price;
+    const cartItem = { ...item, price: effectivePrice };
+
     if (existingItem) {
       setCart(
         cart.map((i) =>
@@ -114,7 +199,7 @@ const CustomerMenu = () => {
         ),
       );
     } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
+      setCart([...cart, { ...cartItem, quantity: 1 }]);
     }
     toast.success(`Đã thêm ${item.name} vào giỏ hàng`);
   };
@@ -203,10 +288,19 @@ const CustomerMenu = () => {
       table_number: "",
       note: "",
     });
+
+    // Clear localStorage after successful payment
+    localStorage.removeItem(`minitake_payment_${storeSlug}`);
+    localStorage.removeItem(`minitake_cart_${storeSlug}`);
   };
 
   const handlePaymentCancel = () => {
     setPaymentOpen(false);
+    setCurrentOrder(null);
+
+    // Clear localStorage when user cancels payment
+    localStorage.removeItem(`minitake_payment_${storeSlug}`);
+
     // Order is still created, just not paid yet
     toast.info("Bạn có thể thanh toán sau");
   };
@@ -395,9 +489,16 @@ const CustomerMenu = () => {
               )}
               <CardContent className="p-4 space-y-3">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    {item.name}
-                  </h3>
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-bold text-gray-900">
+                      {item.name}
+                    </h3>
+                    {item.has_promotion && item.promotion_label && (
+                      <Badge className="bg-red-500 text-white text-xs shrink-0">
+                        {item.promotion_label}
+                      </Badge>
+                    )}
+                  </div>
                   {item.description && (
                     <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                       {item.description}
@@ -405,9 +506,22 @@ const CustomerMenu = () => {
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xl font-bold text-emerald-600">
-                    {item.price.toLocaleString("vi-VN")} đ
-                  </span>
+                  <div className="flex flex-col">
+                    {item.has_promotion ? (
+                      <>
+                        <span className="text-sm text-gray-400 line-through">
+                          {item.original_price.toLocaleString("vi-VN")} đ
+                        </span>
+                        <span className="text-xl font-bold text-red-600">
+                          {item.discounted_price.toLocaleString("vi-VN")} đ
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xl font-bold text-emerald-600">
+                        {item.price.toLocaleString("vi-VN")} đ
+                      </span>
+                    )}
+                  </div>
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -440,8 +554,14 @@ const CustomerMenu = () => {
                 </div>
               )}
               <DialogHeader>
-                <DialogTitle className="text-2xl">
+                <DialogTitle className="text-2xl flex items-center gap-3">
                   {selectedItem.name}
+                  {selectedItem.has_promotion &&
+                    selectedItem.promotion_label && (
+                      <Badge className="bg-red-500 text-white">
+                        {selectedItem.promotion_label}
+                      </Badge>
+                    )}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
@@ -451,9 +571,26 @@ const CustomerMenu = () => {
                   </p>
                 )}
                 <div className="flex items-center justify-between pt-4 border-t">
-                  <span className="text-3xl font-bold text-emerald-600">
-                    {selectedItem.price.toLocaleString("vi-VN")} đ
-                  </span>
+                  <div className="flex flex-col">
+                    {selectedItem.has_promotion ? (
+                      <>
+                        <span className="text-lg text-gray-400 line-through">
+                          {selectedItem.original_price.toLocaleString("vi-VN")}{" "}
+                          đ
+                        </span>
+                        <span className="text-3xl font-bold text-red-600">
+                          {selectedItem.discounted_price.toLocaleString(
+                            "vi-VN",
+                          )}{" "}
+                          đ
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-3xl font-bold text-emerald-600">
+                        {selectedItem.price.toLocaleString("vi-VN")} đ
+                      </span>
+                    )}
+                  </div>
                   <Button
                     onClick={addToCartFromDetail}
                     className="bg-emerald-600 hover:bg-emerald-700 px-8"

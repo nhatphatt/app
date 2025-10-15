@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import ImageUpload from "@/components/ImageUpload";
 import {
   Dialog,
   DialogContent,
@@ -664,6 +666,24 @@ const MenuManagement = () => {
                         }
                         placeholder="https://..."
                       />
+                      <p className="text-xs text-gray-500">
+                        Hoặc tải ảnh lên từ máy tính:
+                      </p>
+                      <div className="max-w-xs">
+                        <ImageUpload
+                          value={itemForm.image_url}
+                          onChange={(imageUrl, file) => {
+                            setItemForm({
+                              ...itemForm,
+                              image_url: imageUrl,
+                            });
+                            // TODO: Upload to server and get URL
+                            console.log("Menu item image:", file);
+                          }}
+                          aspectRatio="aspect-square"
+                          placeholder="Upload ảnh món ăn"
+                        />
+                      </div>
                     </div>
                     <Button type="submit" className="w-full">
                       {editingItem ? "Cập nhật" : "Thêm"}
@@ -718,9 +738,29 @@ const MenuManagement = () => {
                   </CardHeader>
                   <CardContent className="space-y-2">
                     <p className="text-sm text-gray-600">{item.description}</p>
-                    <p className="text-lg font-bold text-emerald-600">
-                      {item.price.toLocaleString("vi-VN")} đ
-                    </p>
+
+                    {item.has_promotion ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-red-500 text-white text-xs">
+                            {item.promotion_label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-sm text-gray-400 line-through">
+                            {item.original_price.toLocaleString("vi-VN")} đ
+                          </p>
+                          <p className="text-lg font-bold text-red-600">
+                            {item.discounted_price.toLocaleString("vi-VN")} đ
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-lg font-bold text-emerald-600">
+                        {item.price.toLocaleString("vi-VN")} đ
+                      </p>
+                    )}
+
                     <p className="text-xs text-gray-500">
                       Danh mục: {category?.name}
                     </p>

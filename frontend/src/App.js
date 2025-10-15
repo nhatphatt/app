@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/sonner";
 import "@/App.css";
 
 // Pages
+import HomePage from "@/pages/HomePage";
+import DemoPage from "@/pages/DemoPage";
 import CustomerMenu from "@/pages/CustomerMenu";
 import AdminLogin from "@/pages/admin/AdminLogin";
 import AdminRegister from "@/pages/admin/AdminRegister";
@@ -11,6 +13,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import MenuManagement from "@/pages/admin/MenuManagement";
 import TablesManagement from "@/pages/admin/TablesManagement";
 import OrdersManagement from "@/pages/admin/OrdersManagement";
+import PromotionManagement from "@/pages/admin/PromotionManagement";
 import StoreSettings from "@/pages/admin/StoreSettings";
 import PaymentSettings from "@/pages/admin/PaymentSettings";
 import AdminLayout from "@/components/AdminLayout";
@@ -21,6 +24,12 @@ function App() {
     <div className="App">
       <BrowserRouter>
         <Routes>
+          {/* Home Page */}
+          <Route path="/" element={<HomePage />} />
+
+          {/* Demo Page */}
+          <Route path="/demo" element={<DemoPage />} />
+
           {/* Customer Routes */}
           <Route path="/menu/:storeSlug" element={<CustomerMenu />} />
 
@@ -42,12 +51,10 @@ function App() {
             <Route path="menu" element={<MenuManagement />} />
             <Route path="tables" element={<TablesManagement />} />
             <Route path="orders" element={<OrdersManagement />} />
+            <Route path="promotions" element={<PromotionManagement />} />
             <Route path="payments" element={<PaymentSettings />} />
             <Route path="settings" element={<StoreSettings />} />
           </Route>
-
-          {/* Default Redirect */}
-          <Route path="/" element={<Navigate to="/admin/login" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />

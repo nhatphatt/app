@@ -215,10 +215,70 @@ class PaymentService:
             "invoice_id": payment.get("invoice_id")
         }
 
+    async def process_bank_webhook(self, webhook_data: Dict) -> Dict:
+        """Process bank transfer webhook (from Casso or similar services)"""
+
+        # Extract transaction info
+        transaction_id = webhook_data.get("id")
+        amount = webhook_data.get("amount")
+        description = webhook_data.get("description", "")
+        transaction_date = webhook_data.get("when")
+
+        # Find payment by content match
+        # Expected format: "MINITAKE XXXXXXXX" in description
+        import re
+        match = re.search(r'MINITAKE\s+([A-Z0-9]{8})', description.upper())
+
+        if not match:
+            return {"status": "ignored", "reason": "No payment ID found in description"}
+
+        payment_id_prefix = match.group(1)
+
+        # Find payment by ID prefix
+        payment = await self.db.payments.find_one({
+            "id": {"$regex": f"^{payment_id_prefix.lower()}"},
+            "payment_method": "bank_qr",
+            "status": "pending"
+        })
+
+        if not payment:
+            return {"status": "ignored", "reason": "No matching pending payment found"}
+
+        # Verify amount
+        if int(amount) != int(payment["amount"]):
+            return {
+                "status": "failed",
+                "reason": f"Amount mismatch. Expected {payment['amount']}, got {amount}"
+            }
+
+        # Mark payment as paid
+        await self.db.payments.update_one(
+            {"id": payment["id"]},
+            {"$set": {
+                "status": "paid",
+                "paid_at": datetime.now(timezone.utc).isoformat(),
+                "webhook_received": True,
+                "webhook_verified": True,
+                "transaction_id": transaction_id,
+                "transaction_date": transaction_date,
+                "gateway_response": webhook_data,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+
+        # Complete payment and update order
+        await self._complete_payment(payment["id"], payment["order_id"])
+
+        return {
+            "status": "success",
+            "payment_id": payment["id"],
+            "order_id": payment["order_id"]
+        }
+
     async def _complete_payment(self, payment_id: str, order_id: str):
         """Complete payment and update order status"""
 
-        # 1. Update order
+        # 1. Update order to COMPLETED status
         await self.db.orders.update_one(
             {"id": order_id},
             {"$set": {

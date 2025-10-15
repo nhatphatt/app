@@ -64,6 +64,10 @@ tags_metadata = [
         "name": "Payments",
         "description": "Xử lý thanh toán và quản lý phương thức thanh toán",
     },
+    {
+        "name": "Promotions",
+        "description": "Quản lý chương trình khuyến mãi và giảm giá",
+    },
 ]
 
 app = FastAPI(
@@ -166,6 +170,10 @@ class MenuItem(BaseModel):
     image_url: str
     is_available: bool
     created_at: str
+    original_price: Optional[float] = None  # Original price if promotion exists
+    discounted_price: Optional[float] = None  # Price after discount
+    has_promotion: Optional[bool] = False
+    promotion_label: Optional[str] = None  # e.g., "Giảm 20%"
 
 class OrderItem(BaseModel):
     menu_item_id: str
@@ -358,6 +366,76 @@ async def update_my_store(input: StoreUpdate, current_user: dict = Depends(get_c
     store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0})
     return store
 
+# ============ HELPER FUNCTIONS ============
+
+async def apply_promotions_to_menu_items(store_id: str, menu_items: List[dict]) -> List[dict]:
+    """Apply active promotions to menu items and return updated items with pricing info"""
+    from datetime import datetime, timezone
+
+    # Get active promotions for this store
+    now = datetime.now(timezone.utc).isoformat()
+    promotions = await db.promotions.find({
+        "store_id": store_id,
+        "is_active": True,
+        "start_date": {"$lte": now},
+        "end_date": {"$gte": now}
+    }).to_list(100)
+
+    if not promotions:
+        # No active promotions
+        return menu_items
+
+    # Process each menu item
+    for item in menu_items:
+        best_discount = 0
+        best_promotion = None
+
+        for promotion in promotions:
+            applies = False
+
+            # Check if promotion applies to this item
+            if promotion["apply_to"] == "all":
+                applies = True
+            elif promotion["apply_to"] == "category" and item["category_id"] in promotion.get("category_ids", []):
+                applies = True
+            elif promotion["apply_to"] == "items" and item["id"] in promotion.get("item_ids", []):
+                applies = True
+
+            if applies:
+                # Calculate discount
+                discount = 0
+                if promotion["promotion_type"] == "percentage":
+                    discount = item["price"] * (promotion["discount_value"] / 100)
+                    # Apply max discount limit if exists
+                    if promotion.get("max_discount_amount") and discount > promotion["max_discount_amount"]:
+                        discount = promotion["max_discount_amount"]
+                elif promotion["promotion_type"] == "fixed_amount":
+                    discount = promotion["discount_value"]
+
+                # Keep the best discount
+                if discount > best_discount:
+                    best_discount = discount
+                    best_promotion = promotion
+
+        # Apply the best promotion found
+        if best_promotion:
+            item["original_price"] = item["price"]
+            item["discounted_price"] = max(0, item["price"] - best_discount)
+            item["has_promotion"] = True
+
+            # Generate label
+            if best_promotion["promotion_type"] == "percentage":
+                item["promotion_label"] = f"Giảm {int(best_promotion['discount_value'])}%"
+            else:
+                item["promotion_label"] = f"Giảm {int(best_discount):,}đ"
+        else:
+            item["original_price"] = None
+            item["discounted_price"] = None
+            item["has_promotion"] = False
+            item["promotion_label"] = None
+
+    return menu_items
+
 # ============ PUBLIC ROUTES ============
 
 @api_router.get("/public/{store_slug}/menu", response_model=PublicMenu, tags=["Public Menu"])
@@ -375,6 +453,9 @@ async def get_public_menu(store_slug: str):
         {"store_id": store["id"], "is_available": True},
         {"_id": 0}
     ).to_list(1000)
+
+    # Apply active promotions to menu items
+    menu_items = await apply_promotions_to_menu_items(store["id"], menu_items)
 
     return PublicMenu(
         store=Store(**store),
@@ -472,6 +553,10 @@ async def get_menu_items(current_user: dict = Depends(get_current_user)):
         {"store_id": current_user["store_id"]},
         {"_id": 0}
     ).to_list(1000)
+
+    # Apply active promotions to menu items
+    items = await apply_promotions_to_menu_items(current_user["store_id"], items)
+
     return items
 
 @api_router.post("/menu-items", response_model=MenuItem, tags=["Menu Items"])
@@ -892,6 +977,184 @@ async def confirm_cash_payment(
         return result
     except Exception as e:
         raise HTTPException(400, str(e))
+
+@api_router.post("/webhooks/bank-transfer", tags=["Payments"])
+async def bank_transfer_webhook(webhook_data: dict):
+    """
+    Webhook endpoint for bank transfer notifications
+
+    Supports Casso and similar banking webhook services.
+    Configure this URL in your banking service:
+    https://yourdomain.com/api/webhooks/bank-transfer
+
+    Expected webhook format:
+    {
+        "id": "transaction_id",
+        "amount": 50000,
+        "description": "MINITAKE ABCD1234 thanh toan don hang",
+        "when": "2025-01-15T10:30:00Z",
+        ...
+    }
+    """
+    try:
+        # For now, accept any webhook - in production, verify signature/token
+        # TODO: Add webhook signature verification
+
+        # Try to extract store_id from description or use first store
+        # This is a simplified approach - in production, use proper routing
+        store = await db.stores.find_one()
+        if not store:
+            return {"status": "error", "message": "No store found"}
+
+        payment_service = PaymentService(db, store["id"])
+        result = await payment_service.process_bank_webhook(webhook_data)
+
+        return result
+    except Exception as e:
+        # Don't raise HTTPException - banking services expect 200 OK
+        # Log error instead
+        print(f"Webhook processing error: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+# ============ PROMOTION MANAGEMENT ============
+
+class PromotionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    promotion_type: str  # percentage, fixed_amount, buy_x_get_y, combo
+    discount_value: float
+    start_date: str
+    end_date: str
+    apply_to: str  # all, category, items, order_total
+    category_ids: Optional[List[str]] = []
+    item_ids: Optional[List[str]] = []
+    min_order_value: Optional[float] = None
+    max_discount_amount: Optional[float] = None
+    payment_methods: Optional[List[str]] = []
+    member_only: Optional[bool] = False
+    is_active: Optional[bool] = True
+    usage_limit: Optional[int] = None
+
+class PromotionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    promotion_type: Optional[str] = None
+    discount_value: Optional[float] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    apply_to: Optional[str] = None
+    category_ids: Optional[List[str]] = None
+    item_ids: Optional[List[str]] = None
+    min_order_value: Optional[float] = None
+    max_discount_amount: Optional[float] = None
+    payment_methods: Optional[List[str]] = None
+    member_only: Optional[bool] = None
+    is_active: Optional[bool] = None
+    usage_limit: Optional[int] = None
+
+@api_router.get("/promotions", tags=["Promotions"])
+async def get_promotions(current_user: dict = Depends(get_current_user)):
+    """Get all promotions for current user's store"""
+    promotions = await db.promotions.find(
+        {"store_id": current_user["store_id"]},
+        {"_id": 0}
+    ).to_list(100)
+    return promotions
+
+@api_router.get("/promotions/active", tags=["Promotions"])
+async def get_active_promotions(store_slug: str):
+    """Get active promotions for a store (public endpoint for customer menu)"""
+    # Get store by slug
+    store = await db.stores.find_one({"slug": store_slug})
+    if not store:
+        raise HTTPException(404, "Store not found")
+
+    # Get active promotions
+    now = datetime.now(timezone.utc).isoformat()
+    promotions = await db.promotions.find({
+        "store_id": store["id"],
+        "is_active": True,
+        "start_date": {"$lte": now},
+        "end_date": {"$gte": now}
+    }, {"_id": 0}).to_list(100)
+
+    return promotions
+
+@api_router.post("/promotions", tags=["Promotions"])
+async def create_promotion(
+    promotion: PromotionCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create new promotion"""
+    if current_user["role"] not in ["admin"]:
+        raise HTTPException(403, "Not authorized")
+
+    promotion_id = str(uuid.uuid4())
+    promotion_doc = {
+        "id": promotion_id,
+        "store_id": current_user["store_id"],
+        **promotion.model_dump(),
+        "usage_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
+    await db.promotions.insert_one(promotion_doc)
+
+    promotion_doc.pop("_id", None)
+    return promotion_doc
+
+@api_router.put("/promotions/{promotion_id}", tags=["Promotions"])
+async def update_promotion(
+    promotion_id: str,
+    promotion_update: PromotionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update promotion"""
+    if current_user["role"] not in ["admin"]:
+        raise HTTPException(403, "Not authorized")
+
+    # Check if promotion exists and belongs to user's store
+    existing = await db.promotions.find_one({
+        "id": promotion_id,
+        "store_id": current_user["store_id"]
+    })
+    if not existing:
+        raise HTTPException(404, "Promotion not found")
+
+    # Update only provided fields
+    update_data = {
+        k: v for k, v in promotion_update.model_dump().items()
+        if v is not None
+    }
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.promotions.update_one(
+        {"id": promotion_id},
+        {"$set": update_data}
+    )
+
+    updated = await db.promotions.find_one({"id": promotion_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/promotions/{promotion_id}", tags=["Promotions"])
+async def delete_promotion(
+    promotion_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete promotion"""
+    if current_user["role"] not in ["admin"]:
+        raise HTTPException(403, "Not authorized")
+
+    result = await db.promotions.delete_one({
+        "id": promotion_id,
+        "store_id": current_user["store_id"]
+    })
+
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Promotion not found")
+
+    return {"message": "Promotion deleted successfully"}
 
 # ============ PAYMENT METHODS MANAGEMENT ============
 

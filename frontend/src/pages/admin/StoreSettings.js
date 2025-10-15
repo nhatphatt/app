@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import ImageUpload from "@/components/ImageUpload";
 import { Loader2, Store } from "lucide-react";
 import api from "@/utils/api";
 import { toast } from "sonner";
@@ -115,26 +116,21 @@ const StoreSettings = () => {
                   onChange={(e) => setStore({ ...store, logo: e.target.value })}
                   placeholder="https://..."
                 />
-                {store.logo && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-2">Preview:</p>
-                    <img
-                      src={store.logo}
-                      alt="Store Logo Preview"
-                      className="w-32 h-32 object-contain border rounded-lg bg-white p-2"
-                      onError={(e) => {
-                        e.target.style.display = "none";
-                        e.target.nextSibling.style.display = "block";
-                      }}
-                    />
-                    <p
-                      className="text-sm text-red-500 mt-2"
-                      style={{ display: "none" }}
-                    >
-                      Không thể tải ảnh từ URL này
-                    </p>
-                  </div>
-                )}
+                <p className="text-xs text-gray-500 mt-1">
+                  Hoặc tải logo lên từ máy tính:
+                </p>
+                <ImageUpload
+                  value={store.logo}
+                  onChange={(imageUrl, file) => {
+                    setStore({ ...store, logo: imageUrl });
+                    // TODO: Upload to server and get URL
+                    console.log("Store logo image:", file);
+                  }}
+                  aspectRatio="aspect-square"
+                  placeholder="Upload logo cửa hàng"
+                  objectFit="contain"
+                  className="max-w-[200px]"
+                />
               </div>
               <Button
                 type="submit"
