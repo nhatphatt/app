@@ -26,8 +26,52 @@ SECRET_KEY = os.environ.get('JWT_SECRET', 'minitake-secret-key-change-in-product
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Create the main app
-app = FastAPI(title="Minitake F&B API")
+# Create the main app with metadata
+tags_metadata = [
+    {
+        "name": "Authentication",
+        "description": "Đăng ký, đăng nhập và xác thực người dùng",
+    },
+    {
+        "name": "Stores",
+        "description": "Quản lý thông tin cửa hàng",
+    },
+    {
+        "name": "Public Menu",
+        "description": "API công khai cho khách hàng xem menu và đặt món",
+    },
+    {
+        "name": "Categories",
+        "description": "Quản lý danh mục món ăn",
+    },
+    {
+        "name": "Menu Items",
+        "description": "Quản lý món ăn trong menu",
+    },
+    {
+        "name": "Orders",
+        "description": "Quản lý đơn hàng",
+    },
+    {
+        "name": "Analytics",
+        "description": "Thống kê và báo cáo doanh thu",
+    },
+    {
+        "name": "Tables",
+        "description": "Quản lý bàn và QR code",
+    },
+    {
+        "name": "Payments",
+        "description": "Xử lý thanh toán và quản lý phương thức thanh toán",
+    },
+]
+
+app = FastAPI(
+    title="Minitake F&B API",
+    description="API quản lý nhà hàng và menu số - Hỗ trợ đặt món, thanh toán và quản lý cửa hàng",
+    version="1.0.0",
+    openapi_tags=tags_metadata
+)
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
@@ -214,7 +258,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ============ AUTH ROUTES ============
 
-@api_router.post("/auth/register", response_model=TokenResponse)
+@api_router.post("/auth/register", response_model=TokenResponse, tags=["Authentication"])
 async def register(input: UserRegister):
     # Check if email exists
     existing_user = await db.users.find_one({"email": input.email})
@@ -269,7 +313,7 @@ async def register(input: UserRegister):
         user=user_response
     )
 
-@api_router.post("/auth/login", response_model=TokenResponse)
+@api_router.post("/auth/login", response_model=TokenResponse, tags=["Authentication"])
 async def login(input: UserLogin):
     user = await db.users.find_one({"email": input.email}, {"_id": 0})
     if not user or not verify_password(input.password, user["password_hash"]):
@@ -293,14 +337,14 @@ async def login(input: UserLogin):
 
 # ============ STORE ROUTES ============
 
-@api_router.get("/stores/me", response_model=Store)
+@api_router.get("/stores/me", response_model=Store, tags=["Stores"])
 async def get_my_store(current_user: dict = Depends(get_current_user)):
     store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0})
     if not store:
         raise HTTPException(status_code=404, detail="Store not found")
     return store
 
-@api_router.put("/stores/me", response_model=Store)
+@api_router.put("/stores/me", response_model=Store, tags=["Stores"])
 async def update_my_store(input: StoreUpdate, current_user: dict = Depends(get_current_user)):
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     if not update_data:
@@ -316,7 +360,7 @@ async def update_my_store(input: StoreUpdate, current_user: dict = Depends(get_c
 
 # ============ PUBLIC ROUTES ============
 
-@api_router.get("/public/{store_slug}/menu", response_model=PublicMenu)
+@api_router.get("/public/{store_slug}/menu", response_model=PublicMenu, tags=["Public Menu"])
 async def get_public_menu(store_slug: str):
     store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
     if not store:
@@ -338,7 +382,7 @@ async def get_public_menu(store_slug: str):
         menu_items=[MenuItem(**item) for item in menu_items]
     )
 
-@api_router.post("/public/{store_slug}/orders", response_model=Order)
+@api_router.post("/public/{store_slug}/orders", response_model=Order, tags=["Public Menu"])
 async def create_public_order(store_slug: str, input: OrderCreate):
     store = await db.stores.find_one({"slug": store_slug}, {"_id": 0})
     if not store:
@@ -370,7 +414,7 @@ async def create_public_order(store_slug: str, input: OrderCreate):
 
     return Order(**order_doc)
 
-@api_router.get("/public/orders/{order_id}", response_model=Order)
+@api_router.get("/public/orders/{order_id}", response_model=Order, tags=["Public Menu"])
 async def get_public_order(order_id: str):
     """Public endpoint for customers to check their order status"""
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
@@ -380,7 +424,7 @@ async def get_public_order(order_id: str):
 
 # ============ CATEGORY ROUTES ============
 
-@api_router.get("/categories", response_model=List[Category])
+@api_router.get("/categories", response_model=List[Category], tags=["Categories"])
 async def get_categories(current_user: dict = Depends(get_current_user)):
     categories = await db.categories.find(
         {"store_id": current_user["store_id"]},
@@ -388,7 +432,7 @@ async def get_categories(current_user: dict = Depends(get_current_user)):
     ).sort("display_order", 1).to_list(1000)
     return categories
 
-@api_router.post("/categories", response_model=Category)
+@api_router.post("/categories", response_model=Category, tags=["Categories"])
 async def create_category(input: CategoryCreate, current_user: dict = Depends(get_current_user)):
     category_id = str(uuid.uuid4())
     category_doc = {
@@ -401,7 +445,7 @@ async def create_category(input: CategoryCreate, current_user: dict = Depends(ge
     await db.categories.insert_one(category_doc)
     return Category(**category_doc)
 
-@api_router.put("/categories/{category_id}", response_model=Category)
+@api_router.put("/categories/{category_id}", response_model=Category, tags=["Categories"])
 async def update_category(category_id: str, input: CategoryCreate, current_user: dict = Depends(get_current_user)):
     result = await db.categories.update_one(
         {"id": category_id, "store_id": current_user["store_id"]},
@@ -413,7 +457,7 @@ async def update_category(category_id: str, input: CategoryCreate, current_user:
     category = await db.categories.find_one({"id": category_id}, {"_id": 0})
     return category
 
-@api_router.delete("/categories/{category_id}")
+@api_router.delete("/categories/{category_id}", tags=["Categories"])
 async def delete_category(category_id: str, current_user: dict = Depends(get_current_user)):
     result = await db.categories.delete_one({"id": category_id, "store_id": current_user["store_id"]})
     if result.deleted_count == 0:
@@ -422,7 +466,7 @@ async def delete_category(category_id: str, current_user: dict = Depends(get_cur
 
 # ============ MENU ITEMS ROUTES ============
 
-@api_router.get("/menu-items", response_model=List[MenuItem])
+@api_router.get("/menu-items", response_model=List[MenuItem], tags=["Menu Items"])
 async def get_menu_items(current_user: dict = Depends(get_current_user)):
     items = await db.menu_items.find(
         {"store_id": current_user["store_id"]},
@@ -430,7 +474,7 @@ async def get_menu_items(current_user: dict = Depends(get_current_user)):
     ).to_list(1000)
     return items
 
-@api_router.post("/menu-items", response_model=MenuItem)
+@api_router.post("/menu-items", response_model=MenuItem, tags=["Menu Items"])
 async def create_menu_item(input: MenuItemCreate, current_user: dict = Depends(get_current_user)):
     # Verify category belongs to this store
     category = await db.categories.find_one({
@@ -455,7 +499,7 @@ async def create_menu_item(input: MenuItemCreate, current_user: dict = Depends(g
     await db.menu_items.insert_one(item_doc)
     return MenuItem(**item_doc)
 
-@api_router.put("/menu-items/{item_id}", response_model=MenuItem)
+@api_router.put("/menu-items/{item_id}", response_model=MenuItem, tags=["Menu Items"])
 async def update_menu_item(item_id: str, input: MenuItemCreate, current_user: dict = Depends(get_current_user)):
     result = await db.menu_items.update_one(
         {"id": item_id, "store_id": current_user["store_id"]},
@@ -467,14 +511,14 @@ async def update_menu_item(item_id: str, input: MenuItemCreate, current_user: di
     item = await db.menu_items.find_one({"id": item_id}, {"_id": 0})
     return item
 
-@api_router.delete("/menu-items/{item_id}")
+@api_router.delete("/menu-items/{item_id}", tags=["Menu Items"])
 async def delete_menu_item(item_id: str, current_user: dict = Depends(get_current_user)):
     result = await db.menu_items.delete_one({"id": item_id, "store_id": current_user["store_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Menu item not found")
     return {"message": "Menu item deleted"}
 
-@api_router.delete("/menu-items")
+@api_router.delete("/menu-items", tags=["Menu Items"])
 async def delete_all_menu_items(current_user: dict = Depends(get_current_user)):
     """Delete all menu items for the current store"""
     result = await db.menu_items.delete_many({"store_id": current_user["store_id"]})
@@ -483,7 +527,7 @@ async def delete_all_menu_items(current_user: dict = Depends(get_current_user)):
         "deleted_count": result.deleted_count
     }
 
-@api_router.post("/menu-items/bulk-import")
+@api_router.post("/menu-items/bulk-import", tags=["Menu Items"])
 async def bulk_import_menu_items(input: BulkMenuImport, current_user: dict = Depends(get_current_user)):
     """
     Bulk import categories and menu items from JSON.
@@ -600,7 +644,7 @@ async def bulk_import_menu_items(input: BulkMenuImport, current_user: dict = Dep
 
 # ============ ORDER ROUTES ============
 
-@api_router.get("/orders", response_model=List[Order])
+@api_router.get("/orders", response_model=List[Order], tags=["Orders"])
 async def get_orders(current_user: dict = Depends(get_current_user)):
     orders = await db.orders.find(
         {"store_id": current_user["store_id"]},
@@ -608,7 +652,7 @@ async def get_orders(current_user: dict = Depends(get_current_user)):
     ).sort("created_at", -1).to_list(1000)
     return orders
 
-@api_router.get("/orders/{order_id}", response_model=Order)
+@api_router.get("/orders/{order_id}", response_model=Order, tags=["Orders"])
 async def get_order(order_id: str, current_user: dict = Depends(get_current_user)):
     order = await db.orders.find_one(
         {"id": order_id, "store_id": current_user["store_id"]},
@@ -618,7 +662,7 @@ async def get_order(order_id: str, current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Order not found")
     return order
 
-@api_router.put("/orders/{order_id}/status", response_model=Order)
+@api_router.put("/orders/{order_id}/status", response_model=Order, tags=["Orders"])
 async def update_order_status(order_id: str, input: OrderStatusUpdate, current_user: dict = Depends(get_current_user)):
     valid_statuses = ["pending", "preparing", "ready", "completed", "cancelled"]
     if input.status not in valid_statuses:
@@ -636,7 +680,7 @@ async def update_order_status(order_id: str, input: OrderStatusUpdate, current_u
 
 # ============ ANALYTICS ROUTES ============
 
-@api_router.get("/analytics/dashboard", response_model=DashboardStats)
+@api_router.get("/analytics/dashboard", response_model=DashboardStats, tags=["Analytics"])
 async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     # Today's start and end
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -673,7 +717,7 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
 
 # ============ TABLES ROUTES ============
 
-@api_router.get("/tables", response_model=List[Table])
+@api_router.get("/tables", response_model=List[Table], tags=["Tables"])
 async def get_tables(current_user: dict = Depends(get_current_user)):
     tables = await db.tables.find(
         {"store_id": current_user["store_id"]},
@@ -681,7 +725,7 @@ async def get_tables(current_user: dict = Depends(get_current_user)):
     ).sort("table_number", 1).to_list(1000)
     return tables
 
-@api_router.post("/tables", response_model=Table)
+@api_router.post("/tables", response_model=Table, tags=["Tables"])
 async def create_table(input: TableCreate, current_user: dict = Depends(get_current_user)):
     # Check if table number already exists
     existing = await db.tables.find_one({
@@ -711,7 +755,7 @@ async def create_table(input: TableCreate, current_user: dict = Depends(get_curr
     await db.tables.insert_one(table_doc)
     return Table(**table_doc)
 
-@api_router.put("/tables/{table_id}", response_model=Table)
+@api_router.put("/tables/{table_id}", response_model=Table, tags=["Tables"])
 async def update_table(table_id: str, input: TableUpdate, current_user: dict = Depends(get_current_user)):
     update_data = {k: v for k, v in input.model_dump().items() if v is not None}
     if not update_data:
@@ -727,14 +771,14 @@ async def update_table(table_id: str, input: TableUpdate, current_user: dict = D
     table = await db.tables.find_one({"id": table_id}, {"_id": 0})
     return table
 
-@api_router.delete("/tables/{table_id}")
+@api_router.delete("/tables/{table_id}", tags=["Tables"])
 async def delete_table(table_id: str, current_user: dict = Depends(get_current_user)):
     result = await db.tables.delete_one({"id": table_id, "store_id": current_user["store_id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Table not found")
     return {"message": "Table deleted"}
 
-@api_router.get("/tables/{table_id}", response_model=Table)
+@api_router.get("/tables/{table_id}", response_model=Table, tags=["Tables"])
 async def get_table_by_id(table_id: str):
     """Public endpoint to get table info by ID (for QR code scanning)"""
     table = await db.tables.find_one({"id": table_id}, {"_id": 0})
@@ -770,7 +814,7 @@ class PaymentConfirmation(BaseModel):
 
 from payment_service import PaymentService
 
-@api_router.post("/payments/initiate", response_model=PaymentResponse)
+@api_router.post("/payments/initiate", response_model=PaymentResponse, tags=["Payments"])
 async def initiate_payment(input: PaymentInitiate):
     """Initialize payment process - public endpoint"""
 
@@ -790,7 +834,7 @@ async def initiate_payment(input: PaymentInitiate):
     except Exception as e:
         raise HTTPException(400, str(e))
 
-@api_router.get("/payments/{payment_id}")
+@api_router.get("/payments/{payment_id}", tags=["Payments"])
 async def get_payment_status(payment_id: str):
     """Get payment status - public endpoint for customers"""
 
@@ -808,7 +852,7 @@ async def get_payment_status(payment_id: str):
         "expires_at": payment.get("expires_at")
     }
 
-@api_router.get("/payments/{payment_id}/poll")
+@api_router.get("/payments/{payment_id}/poll", tags=["Payments"])
 async def poll_payment_status(payment_id: str):
     """Poll payment status - for frontend to check updates"""
 
@@ -823,7 +867,7 @@ async def poll_payment_status(payment_id: str):
     except Exception as e:
         raise HTTPException(400, str(e))
 
-@api_router.post("/payments/{payment_id}/confirm")
+@api_router.post("/payments/{payment_id}/confirm", tags=["Payments"])
 async def confirm_cash_payment(
     payment_id: str,
     confirmation: PaymentConfirmation,
@@ -880,7 +924,7 @@ class PaymentMethodResponse(BaseModel):
     created_at: str
     updated_at: Optional[str] = None
 
-@api_router.get("/payment-methods")
+@api_router.get("/payment-methods", tags=["Payments"])
 async def get_payment_methods(current_user: dict = Depends(get_current_user)):
     """Get all payment methods for store"""
     methods = await db.payment_methods.find(
@@ -922,7 +966,7 @@ async def get_payment_methods(current_user: dict = Depends(get_current_user)):
 
     return methods
 
-@api_router.put("/payment-methods/{method_id}")
+@api_router.put("/payment-methods/{method_id}", tags=["Payments"])
 async def update_payment_method(
     method_id: str,
     input: PaymentMethodConfig,
