@@ -33,11 +33,10 @@ class GeminiService:
 
         # Use Gemini Flash for fast responses with higher quota
         # Free tier: 15 RPM (requests per minute) vs 2 RPM for Pro
-        # Try multiple model names for compatibility
+        # Try multiple model names for compatibility with v0.7.2
         model_names = [
-            'gemini-2.0-flash-exp',    # Latest experimental
-            'gemini-1.5-flash-latest',  # Stable latest
-            'gemini-1.5-flash',         # Stable
+            'gemini-1.5-flash',         # Stable - works with 0.7.2
+            'gemini-1.5-pro',           # Pro version
             'gemini-pro'                # Fallback
         ]
 
