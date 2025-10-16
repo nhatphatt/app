@@ -33,12 +33,11 @@ class GeminiService:
 
         # Use Gemini Flash for fast responses with higher quota
         # Free tier: 15 RPM (requests per minute) vs 2 RPM for Pro
-        # For v1beta API (google-generativeai 0.7.2), use these model names
+        # For google-generativeai 0.8.x, use these model names
         model_names = [
-            'models/gemini-1.5-flash',  # Correct format for v1beta
-            'models/gemini-1.5-pro',    # Pro version
-            'models/gemini-pro',        # Fallback
-            'gemini-pro'                # Last resort
+            'gemini-1.5-flash',         # Gemini 1.5 Flash (0.8.x format)
+            'gemini-1.5-pro',           # Gemini 1.5 Pro
+            'gemini-pro'                # Fallback to 1.0 Pro
         ]
 
         model_initialized = False

@@ -42,4 +42,5 @@ scipy==1.11.2
 APScheduler==3.10.4
 
 # AI - Google Gemini
-google-generativeai==0.7.2
+# Using 0.8.3 which supports Gemini 1.5 and works with our Docker setup
+google-generativeai==0.8.3
