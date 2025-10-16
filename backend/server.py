@@ -1885,6 +1885,66 @@ async def close_conversation(session_id: str):
     except Exception as e:
         raise HTTPException(500, f"Error closing conversation: {str(e)}")
 
+@api_router.get("/chatbot/debug/status", tags=["AI Chatbot"])
+async def get_chatbot_ai_status():
+    """
+    Debug endpoint to check AI/Gemini status
+
+    Returns information about:
+    - Whether GEMINI_API_KEY is set
+    - Whether AI services are initialized
+    - Test AI functionality
+    """
+    import os
+    from chatbot.intent_recognizer import IntentRecognizer
+    from chatbot.response_generator import ResponseGenerator
+
+    status = {
+        "gemini_api_key_set": False,
+        "gemini_api_key_preview": "",
+        "intent_recognizer_ai": False,
+        "response_generator_ai": False,
+        "test_result": None,
+        "error": None
+    }
+
+    try:
+        # Check if API key exists
+        api_key = os.environ.get('GEMINI_API_KEY')
+        if api_key:
+            status["gemini_api_key_set"] = True
+            status["gemini_api_key_preview"] = f"{api_key[:10]}...{api_key[-4:]}"
+
+        # Check intent recognizer
+        intent_recognizer = IntentRecognizer()
+        status["intent_recognizer_ai"] = intent_recognizer.use_ai
+
+        # Check response generator
+        response_generator = ResponseGenerator(db)
+        status["response_generator_ai"] = response_generator.use_ai
+
+        # Test Gemini API call
+        if intent_recognizer.use_ai and intent_recognizer.gemini_service:
+            try:
+                test_result = intent_recognizer.gemini_service.detect_intent("Xin chào")
+                status["test_result"] = {
+                    "success": True,
+                    "intent": test_result.get("intent"),
+                    "confidence": test_result.get("confidence")
+                }
+            except Exception as test_error:
+                status["test_result"] = {
+                    "success": False,
+                    "error": str(test_error)
+                }
+
+    except Exception as e:
+        status["error"] = str(e)
+        import traceback
+        status["traceback"] = traceback.format_exc()
+
+    return status
+
 # ============ APP SETUP ============
 
 app.add_middleware(
