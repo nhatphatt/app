@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+
+# Frontend (not needed for backend)
+frontend/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Docs
+*.md
+
+# Tests
+test_*.py
+
+# Env files (will be set by Railway)
+.env
+.env.local
+
+# Node
+node_modules/
