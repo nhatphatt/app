@@ -31,14 +31,30 @@ class GeminiService:
             print(f"❌ Failed to configure Gemini API: {e}")
             raise
 
-        # Use Gemini Flash Latest for fast responses with higher quota
+        # Use Gemini Flash for fast responses with higher quota
         # Free tier: 15 RPM (requests per minute) vs 2 RPM for Pro
-        try:
-            self.model = genai.GenerativeModel('gemini-flash-latest')
-            print("✓ Gemini model initialized: gemini-flash-latest")
-        except Exception as e:
-            print(f"❌ Failed to initialize Gemini model: {e}")
-            raise
+        # Try multiple model names for compatibility
+        model_names = [
+            'gemini-2.0-flash-exp',    # Latest experimental
+            'gemini-1.5-flash-latest',  # Stable latest
+            'gemini-1.5-flash',         # Stable
+            'gemini-pro'                # Fallback
+        ]
+
+        model_initialized = False
+        for model_name in model_names:
+            try:
+                self.model = genai.GenerativeModel(model_name)
+                print(f"✓ Gemini model initialized: {model_name}")
+                model_initialized = True
+                break
+            except Exception as e:
+                print(f"⚠ Failed to initialize {model_name}: {e}")
+                continue
+
+        if not model_initialized:
+            print(f"❌ Failed to initialize any Gemini model")
+            raise ValueError("Could not initialize any Gemini model")
 
         # System instructions for the chatbot
         self.system_context = """Bạn là trợ lý AI thông minh cho hệ thống đặt món ăn Minitake.
