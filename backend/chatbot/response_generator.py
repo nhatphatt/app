@@ -18,19 +18,36 @@ class ResponseGenerator:
     def __init__(self, db, use_ai: bool = True):
         self.db = db
         self.response_templates = self._load_response_templates()
-        self.use_ai = use_ai and os.environ.get('GEMINI_API_KEY') is not None
+
+        # Check GEMINI_API_KEY
+        api_key = os.environ.get('GEMINI_API_KEY')
+        print(f"[ResponseGenerator] Checking GEMINI_API_KEY...")
+        print(f"[ResponseGenerator] use_ai parameter: {use_ai}")
+        print(f"[ResponseGenerator] GEMINI_API_KEY exists: {api_key is not None}")
+        if api_key:
+            print(f"[ResponseGenerator] API key preview: {api_key[:10]}...{api_key[-4:]}")
+
+        self.use_ai = use_ai and api_key is not None
         self.gemini_service = None
+
+        print(f"[ResponseGenerator] Final use_ai value: {self.use_ai}")
 
         # Initialize Gemini if enabled
         if self.use_ai:
+            print(f"[ResponseGenerator] Attempting to initialize Gemini...")
             try:
                 from chatbot.gemini_service import GeminiService
+                print(f"[ResponseGenerator] GeminiService imported successfully")
                 self.gemini_service = GeminiService()
                 print("✓ Gemini AI enabled for response generation")
             except Exception as e:
                 print(f"⚠ Gemini AI not available: {e}")
                 print("  Falling back to templates")
+                import traceback
+                traceback.print_exc()
                 self.use_ai = False
+        else:
+            print(f"[ResponseGenerator] Skipping Gemini initialization (use_ai=False)")
 
     def _load_response_templates(self) -> Dict:
         """

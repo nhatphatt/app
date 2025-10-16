@@ -1905,8 +1905,15 @@ async def get_chatbot_ai_status():
         "intent_recognizer_ai": False,
         "response_generator_ai": False,
         "test_result": None,
-        "error": None
+        "error": None,
+        "initialization_logs": []
     }
+
+    # Capture stdout to see initialization logs
+    import sys
+    from io import StringIO
+    old_stdout = sys.stdout
+    sys.stdout = captured_output = StringIO()
 
     try:
         # Check if API key exists
@@ -1958,6 +1965,10 @@ async def get_chatbot_ai_status():
         status["error"] = str(e)
         import traceback
         status["traceback"] = traceback.format_exc()
+    finally:
+        # Restore stdout and capture logs
+        sys.stdout = old_stdout
+        status["initialization_logs"] = captured_output.getvalue().split('\n')
 
     return status
 

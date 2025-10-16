@@ -18,19 +18,36 @@ class IntentRecognizer:
 
     def __init__(self, use_ai: bool = True):
         self.intents = self._load_intent_patterns()
-        self.use_ai = use_ai and os.environ.get('GEMINI_API_KEY') is not None
+
+        # Check GEMINI_API_KEY
+        api_key = os.environ.get('GEMINI_API_KEY')
+        print(f"[IntentRecognizer] Checking GEMINI_API_KEY...")
+        print(f"[IntentRecognizer] use_ai parameter: {use_ai}")
+        print(f"[IntentRecognizer] GEMINI_API_KEY exists: {api_key is not None}")
+        if api_key:
+            print(f"[IntentRecognizer] API key preview: {api_key[:10]}...{api_key[-4:]}")
+
+        self.use_ai = use_ai and api_key is not None
         self.gemini_service = None
+
+        print(f"[IntentRecognizer] Final use_ai value: {self.use_ai}")
 
         # Initialize Gemini if enabled
         if self.use_ai:
+            print(f"[IntentRecognizer] Attempting to initialize Gemini...")
             try:
                 from chatbot.gemini_service import GeminiService
+                print(f"[IntentRecognizer] GeminiService imported successfully")
                 self.gemini_service = GeminiService()
                 print("✓ Gemini AI enabled for intent recognition")
             except Exception as e:
                 print(f"⚠ Gemini AI not available: {e}")
                 print("  Falling back to pattern matching")
+                import traceback
+                traceback.print_exc()
                 self.use_ai = False
+        else:
+            print(f"[IntentRecognizer] Skipping Gemini initialization (use_ai=False)")
 
     def _load_intent_patterns(self) -> Dict:
         """
