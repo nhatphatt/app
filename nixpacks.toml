@@ -1,9 +1,9 @@
 [phases.setup]
-nixPkgs = ["python310", "gcc", "pip"]
+nixPkgs = ["python310", "gcc"]
 
 [phases.install]
 cmds = [
-  "cd backend && pip install --user -r requirements.txt"
+  "cd backend && python -m pip install --user --break-system-packages -r requirements.txt"
 ]
 
 [phases.build]
