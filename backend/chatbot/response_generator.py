@@ -15,7 +15,7 @@ class ResponseGenerator:
     Generates natural language responses for different intents
     """
 
-    def __init__(self, db, use_ai: bool = True):
+    def __init__(self, db, use_ai: bool = False):
         self.db = db
         self.response_templates = self._load_response_templates()
 

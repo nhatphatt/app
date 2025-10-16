@@ -1,11 +1,9 @@
-# Use Python 3.10 slim image with all necessary libraries
+# Use Python 3.10 slim image
 FROM python:3.10-slim
 
-# Install system dependencies including C++ libraries
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    g++ \
-    libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

@@ -16,7 +16,7 @@ class IntentRecognizer:
     Recognizes user intent from natural language input
     """
 
-    def __init__(self, use_ai: bool = True):
+    def __init__(self, use_ai: bool = False):
         self.intents = self._load_intent_patterns()
 
         # Check GEMINI_API_KEY
