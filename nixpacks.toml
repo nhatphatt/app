@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["python310", "python310Packages.virtualenv", "gcc"]
+nixPkgs = ["python310", "python310Packages.virtualenv", "gcc", "stdenv.cc.cc.lib"]
 
 [phases.install]
 cmds = [
