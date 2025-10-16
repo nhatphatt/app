@@ -220,8 +220,18 @@ class PublicMenu(BaseModel):
 class DashboardStats(BaseModel):
     today_revenue: float
     today_orders: int
+    month_revenue: float
+    month_orders: int
     pending_orders: int
     total_menu_items: int
+    avg_order_value: float
+    total_customers: int
+    new_customers_month: int
+    total_tables: int
+    occupied_tables: int
+    unpaid_orders: int
+    active_promotions: int
+    unavailable_items: int
 
 class TableCreate(BaseModel):
     table_number: str
@@ -743,6 +753,24 @@ async def get_orders(current_user: dict = Depends(get_current_user)):
         {"store_id": current_user["store_id"]},
         {"_id": 0}
     ).sort("created_at", -1).to_list(1000)
+
+    # Enrich orders with payment method info
+    for order in orders:
+        payment = await db.payments.find_one(
+            {"order_id": order["id"]},
+            {"_id": 0, "payment_method": 1, "status": 1}
+        )
+        if payment:
+            order["payment_method"] = payment.get("payment_method", "unknown")
+            order["payment_status_detail"] = payment.get("status", "pending")
+        else:
+            # If no payment record, check order status
+            # If completed, assume it was cash payment
+            if order.get("status") == "completed" and order.get("payment_status") == "paid":
+                order["payment_method"] = "cash"
+            else:
+                order["payment_method"] = "pending"
+
     return orders
 
 @api_router.get("/orders/{order_id}", response_model=Order, tags=["Orders"])
@@ -761,13 +789,73 @@ async def update_order_status(order_id: str, input: OrderStatusUpdate, current_u
     if input.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
 
+    # Get order first
+    order = await db.orders.find_one(
+        {"id": order_id, "store_id": current_user["store_id"]},
+        {"_id": 0}
+    )
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Update order status
     result = await db.orders.update_one(
         {"id": order_id, "store_id": current_user["store_id"]},
         {"$set": {"status": input.status}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Order not found")
 
+    # If status changed to "completed", auto-confirm cash payment
+    if input.status == "completed":
+        # Find payment for this order
+        payment = await db.payments.find_one({"order_id": order_id})
+
+        if payment:
+            # If payment exists but not yet paid
+            if payment.get("status") != "paid":
+                # Only auto-confirm cash payments or pending payments
+                # Don't touch bank_qr/momo/zalopay that need external confirmation
+                payment_method = payment.get("payment_method", "pending")
+                if payment_method in ["cash", "pending"]:
+                    await db.payments.update_one(
+                        {"id": payment["id"]},
+                        {
+                            "$set": {
+                                "payment_method": "cash",  # If it was pending, mark as cash
+                                "status": "paid",
+                                "paid_at": datetime.now(timezone.utc).isoformat(),
+                                "confirmed_by": current_user["id"],
+                                "confirmation_note": "Tự động xác nhận khi hoàn thành đơn hàng"
+                            }
+                        }
+                    )
+
+                    # Also update order payment_status
+                    await db.orders.update_one(
+                        {"id": order_id},
+                        {"$set": {"payment_status": "paid"}}
+                    )
+        else:
+            # If no payment record exists, create one for cash payment
+            payment_id = str(uuid.uuid4())
+            payment_doc = {
+                "id": payment_id,
+                "order_id": order_id,
+                "store_id": current_user["store_id"],
+                "amount": order["total"],
+                "payment_method": "cash",
+                "status": "paid",
+                "paid_at": datetime.now(timezone.utc).isoformat(),
+                "confirmed_by": current_user["id"],
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.payments.insert_one(payment_doc)
+
+            # Update order payment_status
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {"payment_status": "paid"}}
+            )
+
+    # Return updated order
     order = await db.orders.find_one({"id": order_id}, {"_id": 0})
     return order
 
@@ -778,6 +866,10 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     # Today's start and end
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     today_start_iso = today_start.isoformat()
+
+    # Month's start (first day of current month)
+    month_start = datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_start_iso = month_start.isoformat()
 
     # Get all orders for today
     today_orders = await db.orders.find({
@@ -790,6 +882,17 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
     today_revenue = sum(order["total"] for order in completed_orders)
     today_orders_count = len(today_orders)
 
+    # Get all orders for this month
+    month_orders = await db.orders.find({
+        "store_id": current_user["store_id"],
+        "created_at": {"$gte": month_start_iso}
+    }).to_list(10000)
+
+    # Only count revenue from completed orders
+    month_completed_orders = [order for order in month_orders if order.get("status") == "completed"]
+    month_revenue = sum(order["total"] for order in month_completed_orders)
+    month_orders_count = len(month_orders)
+
     # Pending orders count
     pending_orders = await db.orders.count_documents({
         "store_id": current_user["store_id"],
@@ -801,12 +904,254 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
         "store_id": current_user["store_id"]
     })
 
+    # Average order value
+    avg_order_value = month_revenue / month_orders_count if month_orders_count > 0 else 0
+
+    # Customer statistics
+    all_orders = await db.orders.find(
+        {"store_id": current_user["store_id"]},
+        {"customer_phone": 1, "created_at": 1, "_id": 0}
+    ).to_list(100000)
+
+    unique_customers = set()
+    new_customers = set()
+    for order in all_orders:
+        phone = order.get("customer_phone", "")
+        if phone:
+            unique_customers.add(phone)
+            if order.get("created_at", "") >= month_start_iso:
+                # Check if this is their first order
+                customer_orders = [o for o in all_orders if o.get("customer_phone") == phone]
+                if len(customer_orders) == 1 or min(o.get("created_at", "") for o in customer_orders) >= month_start_iso:
+                    new_customers.add(phone)
+
+    # Table statistics
+    total_tables_count = await db.tables.count_documents({
+        "store_id": current_user["store_id"]
+    })
+    occupied_tables_count = await db.tables.count_documents({
+        "store_id": current_user["store_id"],
+        "status": "occupied"
+    })
+
+    # Unpaid orders
+    unpaid_orders_count = await db.orders.count_documents({
+        "store_id": current_user["store_id"],
+        "payment_status": "pending"
+    })
+
+    # Active promotions
+    now = datetime.now(timezone.utc).isoformat()
+    active_promotions_count = await db.promotions.count_documents({
+        "store_id": current_user["store_id"],
+        "is_active": True,
+        "start_date": {"$lte": now},
+        "end_date": {"$gte": now}
+    })
+
+    # Unavailable menu items
+    unavailable_items_count = await db.menu_items.count_documents({
+        "store_id": current_user["store_id"],
+        "is_available": False
+    })
+
     return DashboardStats(
         today_revenue=today_revenue,
         today_orders=today_orders_count,
+        month_revenue=month_revenue,
+        month_orders=month_orders_count,
         pending_orders=pending_orders,
-        total_menu_items=total_items
+        total_menu_items=total_items,
+        avg_order_value=avg_order_value,
+        total_customers=len(unique_customers),
+        new_customers_month=len(new_customers),
+        total_tables=total_tables_count,
+        occupied_tables=occupied_tables_count,
+        unpaid_orders=unpaid_orders_count,
+        active_promotions=active_promotions_count,
+        unavailable_items=unavailable_items_count
     )
+
+@api_router.get("/analytics/revenue-chart", tags=["Analytics"])
+async def get_revenue_chart(current_user: dict = Depends(get_current_user), days: int = 7):
+    """Get revenue data for chart (last N days)"""
+    result = []
+
+    for i in range(days - 1, -1, -1):
+        day_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=i)
+        day_end = day_start + timedelta(days=1)
+
+        day_start_iso = day_start.isoformat()
+        day_end_iso = day_end.isoformat()
+
+        # Get orders for this day
+        day_orders = await db.orders.find({
+            "store_id": current_user["store_id"],
+            "created_at": {"$gte": day_start_iso, "$lt": day_end_iso}
+        }).to_list(10000)
+
+        completed_orders = [o for o in day_orders if o.get("status") == "completed"]
+        revenue = sum(o["total"] for o in completed_orders)
+
+        result.append({
+            "date": day_start.strftime("%d/%m"),
+            "revenue": revenue,
+            "orders": len(day_orders)
+        })
+
+    return result
+
+@api_router.get("/analytics/top-items", tags=["Analytics"])
+async def get_top_selling_items(current_user: dict = Depends(get_current_user), limit: int = 5):
+    """Get top selling menu items"""
+
+    # Get all completed orders
+    orders = await db.orders.find({
+        "store_id": current_user["store_id"],
+        "status": "completed"
+    }).to_list(100000)
+
+    # Count items
+    item_stats = {}
+    for order in orders:
+        for item in order.get("items", []):
+            item_id = item.get("menu_item_id")
+            if item_id:
+                if item_id not in item_stats:
+                    item_stats[item_id] = {
+                        "item_id": item_id,
+                        "name": item.get("name", ""),
+                        "quantity": 0,
+                        "revenue": 0
+                    }
+                item_stats[item_id]["quantity"] += item.get("quantity", 0)
+                item_stats[item_id]["revenue"] += item.get("price", 0) * item.get("quantity", 0)
+
+    # Sort by quantity
+    sorted_items = sorted(item_stats.values(), key=lambda x: x["quantity"], reverse=True)
+
+    return {
+        "top_selling": sorted_items[:limit],
+        "least_selling": sorted_items[-limit:] if len(sorted_items) >= limit else []
+    }
+
+@api_router.get("/analytics/recent-orders", tags=["Analytics"])
+async def get_recent_orders(current_user: dict = Depends(get_current_user), limit: int = 10):
+    """Get recent orders with payment method info"""
+    orders = await db.orders.find(
+        {"store_id": current_user["store_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(limit).to_list(limit)
+
+    # Enrich orders with payment method info
+    for order in orders:
+        # Find payment for this order
+        payment = await db.payments.find_one(
+            {"order_id": order["id"]},
+            {"_id": 0, "payment_method": 1, "status": 1}
+        )
+        if payment:
+            order["payment_method"] = payment.get("payment_method", "unknown")
+            order["payment_status_detail"] = payment.get("status", "pending")
+        else:
+            # If no payment record, check order status
+            # If completed, assume it was cash payment
+            if order.get("status") == "completed" and order.get("payment_status") == "paid":
+                order["payment_method"] = "cash"
+            else:
+                order["payment_method"] = "pending"
+
+    return orders
+
+@api_router.get("/analytics/payment-methods", tags=["Analytics"])
+async def get_payment_method_stats(current_user: dict = Depends(get_current_user)):
+    """Get payment method statistics"""
+
+    # Get all payments
+    payments = await db.payments.find({
+        "store_id": current_user["store_id"],
+        "status": "paid"
+    }).to_list(100000)
+
+    # Count by method
+    method_stats = {}
+    for payment in payments:
+        method = payment.get("payment_method", "unknown")
+        if method not in method_stats:
+            method_stats[method] = {
+                "method": method,
+                "count": 0,
+                "total": 0
+            }
+        method_stats[method]["count"] += 1
+        method_stats[method]["total"] += payment.get("amount", 0)
+
+    return list(method_stats.values())
+
+@api_router.get("/analytics/alerts", tags=["Analytics"])
+async def get_alerts(current_user: dict = Depends(get_current_user)):
+    """Get system alerts and warnings"""
+    alerts = []
+
+    # Check unavailable items
+    unavailable_items = await db.menu_items.count_documents({
+        "store_id": current_user["store_id"],
+        "is_available": False
+    })
+    if unavailable_items > 0:
+        alerts.append({
+            "type": "warning",
+            "title": "Món ăn hết hàng",
+            "message": f"Có {unavailable_items} món đang không khả dụng",
+            "action": "/admin/menu"
+        })
+
+    # Check pending orders over 30 minutes
+    thirty_min_ago = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+    old_pending = await db.orders.count_documents({
+        "store_id": current_user["store_id"],
+        "status": "pending",
+        "created_at": {"$lt": thirty_min_ago}
+    })
+    if old_pending > 0:
+        alerts.append({
+            "type": "error",
+            "title": "Đơn hàng chậm xử lý",
+            "message": f"Có {old_pending} đơn đang chờ quá 30 phút",
+            "action": "/admin/orders"
+        })
+
+    # Check expiring promotions (within 3 days)
+    three_days_later = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+    now = datetime.now(timezone.utc).isoformat()
+    expiring_promos = await db.promotions.count_documents({
+        "store_id": current_user["store_id"],
+        "is_active": True,
+        "end_date": {"$gte": now, "$lte": three_days_later}
+    })
+    if expiring_promos > 0:
+        alerts.append({
+            "type": "info",
+            "title": "Khuyến mãi sắp hết hạn",
+            "message": f"Có {expiring_promos} chương trình sắp kết thúc trong 3 ngày tới",
+            "action": "/admin/promotions"
+        })
+
+    # Check unpaid orders
+    unpaid = await db.orders.count_documents({
+        "store_id": current_user["store_id"],
+        "payment_status": "pending",
+        "status": {"$in": ["completed", "ready"]}
+    })
+    if unpaid > 0:
+        alerts.append({
+            "type": "warning",
+            "title": "Đơn hàng chưa thanh toán",
+            "message": f"Có {unpaid} đơn đã hoàn thành nhưng chưa thanh toán",
+            "action": "/admin/orders"
+        })
+
+    return alerts
 
 # ============ TABLES ROUTES ============
 

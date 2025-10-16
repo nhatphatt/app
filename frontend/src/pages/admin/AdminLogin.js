@@ -13,7 +13,14 @@ import {
 import { toast } from "sonner";
 import api from "@/utils/api";
 import { setAuthToken, setAuthUser } from "@/utils/auth";
-import { Loader2, Store, Coffee, Sparkles } from "lucide-react";
+import {
+  Loader2,
+  Store,
+  Coffee,
+  Sparkles,
+  ArrowLeft,
+  Home,
+} from "lucide-react";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -42,6 +49,15 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+      {/* Back to Home Button */}
+      <Link
+        to="/"
+        className="absolute top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 bg-white/90 hover:bg-white text-emerald-600 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 group backdrop-blur-sm"
+      >
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform duration-300" />
+        <Home className="w-4 h-4" />
+        <span className="font-medium">Trang chủ</span>
+      </Link>
       {/* Gradient Background */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100"></div>
 
@@ -131,12 +147,6 @@ const AdminLogin = () => {
 
         <div className="relative">
           <CardHeader className="text-center space-y-4 pb-6">
-            {/* Logo with gradient background */}
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-500 rounded-3xl flex items-center justify-center mb-2 shadow-lg relative overflow-hidden group">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <Coffee className="w-10 h-10 text-white relative z-10 transform group-hover:scale-110 transition-transform duration-300" />
-            </div>
-
             {/* Title with gradient text */}
             <div>
               <CardTitle className="text-4xl font-bold bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 bg-clip-text text-transparent">
@@ -210,9 +220,6 @@ const AdminLogin = () => {
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-gray-500">hoặc</span>
               </div>
             </div>
 

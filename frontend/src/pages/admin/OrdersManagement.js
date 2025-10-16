@@ -75,6 +75,24 @@ const OrdersManagement = () => {
     );
   };
 
+  const getPaymentMethodBadge = (method) => {
+    const methodConfig = {
+      cash: { label: "Tiền mặt", color: "text-green-600 bg-green-50" },
+      bank_qr: { label: "Chuyển khoản", color: "text-blue-600 bg-blue-50" },
+      momo: { label: "MoMo", color: "text-pink-600 bg-pink-50" },
+      zalopay: { label: "ZaloPay", color: "text-cyan-600 bg-cyan-50" },
+      vnpay: { label: "VNPay", color: "text-orange-600 bg-orange-50" },
+      pending: { label: "Chưa chọn", color: "text-gray-600 bg-gray-50" },
+      unknown: { label: "Khác", color: "text-gray-600 bg-gray-50" },
+    };
+    const config = methodConfig[method] || methodConfig.unknown;
+    return (
+      <Badge variant="outline" className={config.color}>
+        {config.label}
+      </Badge>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -112,6 +130,7 @@ const OrdersManagement = () => {
                   <CardTitle className="flex items-center gap-3">
                     <span className="text-lg">#{order.id.slice(0, 8)}</span>
                     {getStatusBadge(order.status)}
+                    {getPaymentMethodBadge(order.payment_method || "pending")}
                   </CardTitle>
                   <div className="text-sm text-gray-500 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
