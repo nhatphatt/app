@@ -98,6 +98,12 @@ Hãy phân tích và trả về JSON với format sau:
   "response_type": "<greeting/recommendation/item_info/order_confirmation/cart_display/etc>"
 }}
 
+GHI CHÚ QUAN TRỌNG:
+- NẾU khách hỏi "muốn ăn/uống gì đó", "có món nào", "gợi ý" → intent là "ask_recommendation"
+- NẾU khách hỏi về món cụ thể "phở bò bao nhiêu", "cà phê sữa đá như thế nào" → intent là "ask_item_info"
+- NẾU khách nói "đặt", "thêm vào giỏ", "order" → intent là "order_item"
+- NẾU không chắc, ưu tiên "ask_recommendation" hơn "fallback"
+
 CHỈ trả về JSON, không giải thích thêm.
 """
 

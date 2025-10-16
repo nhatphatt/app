@@ -86,9 +86,9 @@ class ResponseGenerator:
         # Use Gemini AI for natural responses if available
         if self.use_ai and self.gemini_service and original_message:
             try:
-                # Get menu items for context
+                # Get menu items for context (for recommendation/menu/promotion intents)
                 menu_items = None
-                if intent in ["ask_recommendation", "ask_menu", "ask_promotion"]:
+                if intent in ["ask_recommendation", "ask_menu", "ask_promotion", "ask_item_info"]:
                     menu_items = await self._get_menu_items(store_id)
 
                 # Generate AI response
@@ -144,7 +144,9 @@ class ResponseGenerator:
                 }
 
             except Exception as e:
-                print(f"Gemini response generation failed: {e}, falling back to templates")
+                print(f"❌ Gemini response generation failed: {e}, falling back to templates")
+                import traceback
+                traceback.print_exc()
 
         # Fallback to template-based responses
         # Route to specific generator based on intent
