@@ -19,13 +19,26 @@ class GeminiService:
         # Configure Gemini API
         api_key = os.environ.get('GEMINI_API_KEY')
         if not api_key:
+            print("❌ GEMINI_API_KEY not found in environment variables")
             raise ValueError("GEMINI_API_KEY environment variable not set")
 
-        genai.configure(api_key=api_key)
+        print(f"🔑 GEMINI_API_KEY found: {api_key[:10]}...{api_key[-4:]}")
+
+        try:
+            genai.configure(api_key=api_key)
+            print("✓ Gemini API configured")
+        except Exception as e:
+            print(f"❌ Failed to configure Gemini API: {e}")
+            raise
 
         # Use Gemini Flash Latest for fast responses with higher quota
         # Free tier: 15 RPM (requests per minute) vs 2 RPM for Pro
-        self.model = genai.GenerativeModel('gemini-flash-latest')
+        try:
+            self.model = genai.GenerativeModel('gemini-flash-latest')
+            print("✓ Gemini model initialized: gemini-flash-latest")
+        except Exception as e:
+            print(f"❌ Failed to initialize Gemini model: {e}")
+            raise
 
         # System instructions for the chatbot
         self.system_context = """Bạn là trợ lý AI thông minh cho hệ thống đặt món ăn Minitake.
@@ -89,7 +102,9 @@ CHỈ trả về JSON, không giải thích thêm.
 """
 
         try:
+            print(f"🤖 Calling Gemini API for intent detection...")
             response = self.model.generate_content(prompt)
+            print(f"✓ Gemini API response received")
             result_text = response.text.strip()
 
             # Remove markdown code blocks if present
@@ -108,7 +123,9 @@ CHỈ trả về JSON, không giải thích thêm.
             return intent_data
 
         except Exception as e:
-            print(f"Error in Gemini intent detection: {e}")
+            print(f"❌ Error in Gemini intent detection: {e}")
+            import traceback
+            traceback.print_exc()
             # Fallback to default
             return {
                 "intent": "fallback",
@@ -193,11 +210,15 @@ CHỈ trả về câu trả lời, KHÔNG thêm giải thích hay metadata.
 """
 
         try:
+            print(f"🤖 Calling Gemini API for response generation (intent: {intent})...")
             response = self.model.generate_content(prompt)
+            print(f"✓ Gemini response generated successfully")
             return response.text.strip()
 
         except Exception as e:
-            print(f"Error in Gemini response generation: {e}")
+            print(f"❌ Error in Gemini response generation: {e}")
+            import traceback
+            traceback.print_exc()
             return "Xin lỗi, mình đang gặp chút vấn đề kỹ thuật. Bạn thử lại sau chút nhé! 😅"
 
     def generate_recommendation(
