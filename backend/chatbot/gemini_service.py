@@ -31,13 +31,11 @@ class GeminiService:
             print(f"❌ Failed to configure Gemini API: {e}")
             raise
 
-        # Use Gemini Flash for fast responses with higher quota
-        # Free tier: 15 RPM (requests per minute) vs 2 RPM for Pro
-        # For google-generativeai 0.8.x, use these model names
+        # Use Gemini Pro - most compatible and always available
+        # Note: Gemini 1.5 models may not be available for all API keys
+        # gemini-pro is stable and works with all accounts
         model_names = [
-            'gemini-1.5-flash',         # Gemini 1.5 Flash (0.8.x format)
-            'gemini-1.5-pro',           # Gemini 1.5 Pro
-            'gemini-pro'                # Fallback to 1.0 Pro
+            'gemini-pro'                # Gemini Pro 1.0 - always available
         ]
 
         model_initialized = False
