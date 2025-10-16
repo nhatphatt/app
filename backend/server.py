@@ -1916,15 +1916,31 @@ async def get_chatbot_ai_status():
             status["gemini_api_key_preview"] = f"{api_key[:10]}...{api_key[-4:]}"
 
         # Check intent recognizer
-        intent_recognizer = IntentRecognizer()
-        status["intent_recognizer_ai"] = intent_recognizer.use_ai
+        try:
+            intent_recognizer = IntentRecognizer()
+            status["intent_recognizer_ai"] = intent_recognizer.use_ai
+            status["intent_recognizer_error"] = None
+        except Exception as e:
+            status["intent_recognizer_ai"] = False
+            status["intent_recognizer_error"] = str(e)
+            import traceback
+            status["intent_recognizer_traceback"] = traceback.format_exc()
+            intent_recognizer = None
 
         # Check response generator
-        response_generator = ResponseGenerator(db)
-        status["response_generator_ai"] = response_generator.use_ai
+        try:
+            response_generator = ResponseGenerator(db)
+            status["response_generator_ai"] = response_generator.use_ai
+            status["response_generator_error"] = None
+        except Exception as e:
+            status["response_generator_ai"] = False
+            status["response_generator_error"] = str(e)
+            import traceback
+            status["response_generator_traceback"] = traceback.format_exc()
+            response_generator = None
 
         # Test Gemini API call
-        if intent_recognizer.use_ai and intent_recognizer.gemini_service:
+        if intent_recognizer and intent_recognizer.use_ai and intent_recognizer.gemini_service:
             try:
                 test_result = intent_recognizer.gemini_service.detect_intent("Xin chào")
                 status["test_result"] = {
