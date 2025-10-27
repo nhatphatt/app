@@ -17,9 +17,17 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+MONGO_URL = os.environ.get("MONGO_URL")
+DB_NAME = os.environ.get("DB_NAME")
+
+if not MONGO_URL or not DB_NAME:
+    print("FATAL ERROR: Missing required environment variables.")
+    print("Please set MONGO_URL and DB_NAME in your environment or .env file.")
+    raise SystemExit("Exiting: Environment variables not configured.")
+
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
 
 # JWT Settings
 SECRET_KEY = os.environ.get('JWT_SECRET', 'minitake-secret-key-change-in-production')
