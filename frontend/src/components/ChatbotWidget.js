@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { MessageCircle, X, Send, Loader2, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,15 +32,7 @@ const ChatbotWidget = ({
     scrollToBottom();
   }, [messages]);
 
-  // Send initial greeting when widget opens
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      sendMessage("Xin chào");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
-
-  const sendMessage = async (messageText) => {
+  const sendMessage = useCallback(async (messageText) => {
     if (!messageText.trim()) return;
 
     const userMessage = {
@@ -93,7 +85,14 @@ const ChatbotWidget = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [storeSlug, sessionId, customerPhone, tableId, cart]);
+
+  // Send initial greeting when widget opens
+  useEffect(() => {
+    if (isOpen && messages.length === 0) {
+      sendMessage("Xin chào");
+    }
+  }, [isOpen, messages.length, sendMessage]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
