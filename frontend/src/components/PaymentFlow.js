@@ -28,6 +28,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
   const [paymentData, setPaymentData] = useState(null);
   const [polling, setPolling] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
+  const pollIntervalRef = React.useRef(null); // Store interval reference
 
   const paymentMethods = [
     {
@@ -96,14 +97,22 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
   const startPolling = (paymentId) => {
     setPolling(true);
 
-    const pollInterval = setInterval(async () => {
+    // Clear any existing interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    pollIntervalRef.current = setInterval(async () => {
       try {
         const response = await axios.get(
           `${API_BASE}/payments/${paymentId}/poll`,
         );
 
+        console.log('Polling payment status:', response.data); // Debug log
+
         if (response.data.status === "paid") {
-          clearInterval(pollInterval);
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
           setPolling(false);
           setStep("success");
           toast.success("Thanh toán thành công!");
@@ -112,18 +121,27 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
           response.data.status === "expired" ||
           response.data.status === "failed"
         ) {
-          clearInterval(pollInterval);
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
           setPolling(false);
           setStep("failed");
         }
       } catch (error) {
+        console.error('Polling error:', error);
         // Polling error - will retry on next interval
       }
     }, 3000);
-
-    // Cleanup on unmount
-    return () => clearInterval(pollInterval);
   };
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);

@@ -232,6 +232,22 @@ class PaymentService:
                     {"$set": {"status": "expired"}}
                 )
                 payment["status"] = "expired"
+            else:
+                # Check if order was manually completed (admin action)
+                order = await self.db.orders.find_one({"id": payment["order_id"]})
+                if order and order.get("payment_status") == "paid":
+                    # Sync payment status with order
+                    await self.db.payments.update_one(
+                        {"id": payment_id},
+                        {"$set": {
+                            "status": "paid",
+                            "paid_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                            "manual_confirmation": True
+                        }}
+                    )
+                    payment["status"] = "paid"
+                    payment["paid_at"] = datetime.now(timezone.utc).isoformat()
 
         return {
             "status": payment["status"],
