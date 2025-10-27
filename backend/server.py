@@ -1,38 +1,29 @@
+"""Main FastAPI application server."""
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
-import os
-from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
 from typing import List, Optional
-import uuid
 from datetime import datetime, timezone, timedelta
+from bson import ObjectId
+import uuid
 import bcrypt
 import jwt
-from bson import ObjectId
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+from config.settings import settings
+from config.database import Database
 
-# MongoDB connection
-MONGO_URL = os.environ.get("MONGO_URL")
-DB_NAME = os.environ.get("DB_NAME")
+# Initialize database
+db_instance = Database()
 
-if not MONGO_URL or not DB_NAME:
-    print("FATAL ERROR: Missing required environment variables.")
-    print("Please set MONGO_URL and DB_NAME in your environment or .env file.")
-    raise SystemExit("Exiting: Environment variables not configured.")
+# Compatibility: Keep db reference for existing code
+db = None  # Will be set in startup event
 
-
-client = AsyncIOMotorClient(MONGO_URL)
-db = client[DB_NAME]
-
-# JWT Settings
-SECRET_KEY = os.environ.get('JWT_SECRET', 'minitake-secret-key-change-in-production')
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
+# JWT Settings (from config)
+SECRET_KEY = settings.JWT_SECRET
+ALGORITHM = settings.JWT_ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
+FRONTEND_URL = settings.FRONTEND_URL
 
 # Create the main app with metadata
 tags_metadata = [
@@ -1186,8 +1177,9 @@ async def create_table(input: TableCreate, current_user: dict = Depends(get_curr
 
     table_id = str(uuid.uuid4())
     # Generate QR code URL with table parameter
-    base_url = os.environ.get('FRONTEND_URL', 'https://menutech-hub.preview.emergentagent.com')
-    qr_code_url = f"{base_url}/menu/{store['slug']}?table={table_id}"
+    # Remove trailing slash from FRONTEND_URL to avoid double slashes
+    frontend_url = FRONTEND_URL.rstrip('/')
+    qr_code_url = f"{frontend_url}/menu/{store['slug']}?table={table_id}"
 
     table_doc = {
         "id": table_id,
@@ -1376,6 +1368,56 @@ async def bank_transfer_webhook(webhook_data: dict):
         # Log error instead
         print(f"Webhook processing error: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+@api_router.post("/webhooks/test-payment", tags=["Payments"])
+async def test_payment_webhook(payment_id: str, amount: int):
+    """
+    TEST ONLY - Simulate bank webhook for development/testing
+    
+    This endpoint simulates a successful bank transfer webhook.
+    Use this to test payment flow without actual bank transfer.
+    
+    Usage:
+    POST /api/webhooks/test-payment
+    {
+        "payment_id": "abc123...",
+        "amount": 50000
+    }
+    """
+    try:
+        # Find payment
+        payment = await db.payments.find_one({"id": payment_id})
+        if not payment:
+            raise HTTPException(404, "Payment not found")
+        
+        # Verify amount
+        if int(amount) != int(payment["amount"]):
+            return {
+                "status": "failed",
+                "reason": f"Amount mismatch. Expected {payment['amount']}, got {amount}"
+            }
+        
+        # Simulate webhook data
+        webhook_data = {
+            "id": f"TEST_{uuid.uuid4().hex[:8]}",
+            "amount": amount,
+            "description": f"MINITAKE {payment_id[:8].upper()} TEST PAYMENT",
+            "when": datetime.now(timezone.utc).isoformat(),
+            "transaction_type": "in"
+        }
+        
+        # Process webhook
+        payment_service = PaymentService(db, payment["store_id"])
+        result = await payment_service.process_bank_webhook(webhook_data)
+        
+        return {
+            **result,
+            "note": "This is a TEST webhook simulation. In production, use real bank webhooks."
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, str(e))
 
 # ============ PROMOTION MANAGEMENT ============
 
@@ -1985,22 +2027,23 @@ async def get_chatbot_ai_status():
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=settings.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(api_router)
 
-# ============ BACKGROUND JOBS ============
-# Note: Background jobs removed - no longer needed with Gemini AI
-
 @app.on_event("startup")
 async def startup_event():
-    """Initialize application on startup"""
+    """Initialize application on startup."""
+    global db
+    await db_instance.connect()
+    db = db_instance.get_db()
     print("🚀 Minitake F&B System is ready!")
 
 @app.on_event("shutdown")
-async def shutdown_db_client():
-    """Cleanup on shutdown"""
-    client.close()
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    await db_instance.close()
+

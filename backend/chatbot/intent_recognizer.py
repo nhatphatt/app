@@ -88,7 +88,7 @@ class IntentRecognizer:
                     r"(.+)\s(là\sgì|thế\snào|như\sthế\snào)",
                     r"(.+)\s(có\scay|có\sngọt|có\snhiều)",
                     r"cho\stôi\sbiết\svề\s(.+)",
-                    r"(.+)\s(bao\snhiêu\stiền|giá)",
+                    r"^(?!.*(giảm\sgiá|khuyến\smãi|sale|ưu\sđãi))(.+)\s(bao\snhiêu\stiền|giá)(?!\s(giảm|khuyến\smãi))",  # Exclude promotion queries
                 ],
                 "entities": ["item_name"],
                 "response_type": "item_info"
@@ -120,19 +120,42 @@ class IntentRecognizer:
                 "response_type": "cart_display"
             },
 
-            # 6. Ask about promotions
-            "ask_promotion": {
+            # 6. Ask to view menu
+            "ask_menu": {
                 "priority": 2,
-                "keywords": ["giảm giá", "khuyến mãi", "sale", "ưu đãi", "combo"],
+                "keywords": ["menu", "xem menu", "có món gì", "món ăn", "thực đơn"],
                 "patterns": [
-                    r"(có|đang)\s(giảm\sgiá|khuyến\smãi|sale|ưu\sđãi)",
-                    r"món\snào\s(giảm\sgiá|khuyến\smãi)",
+                    r"(xem|cho\sxem|show)\s(menu|thực\sđơn)",
+                    # Exclude promotion-related queries with negative lookahead
+                    r"^(?!.*(giảm\sgiá|khuyến\smãi|sale|ưu\sđãi|rẻ\shơn|đang\sgiảm))(có|quán\scó)\s(món\sgì|món\snào|món\sấn\sgì)",
+                    r"menu\s(là\sgì|có\sgì|như\sthế\snào)",
+                    r"^menu$",
+                ],
+                "response_type": "menu_display"
+            },
+
+            # 7. Ask about promotions
+            "ask_promotion": {
+                "priority": 4,  # Highest priority to avoid conflict with ask_menu and ask_item_info
+                "keywords": ["giảm giá", "khuyến mãi", "sale", "ưu đãi", "combo", "rẻ hơn", "chương trình", "đang giảm"],
+                "patterns": [
+                    # Exact matches for common queries (order matters!)
+                    r"có\smón\snào\s(đang\s)?giảm\sgiá",
+                    r"có\smón\snào\srẻ\shơn",
+                    r"có\smón\s(nào|gì).*(giảm|khuyến\smãi|rẻ)",
+                    r"^(giảm\sgiá|khuyến\smãi)\s?(gì|nào|bao\snhiêu)?",
+                    r"^món\s(nào|gì)\s(giảm\sgiá|khuyến\smãi|đang\sgiảm)",
+                    # General patterns
+                    r"(có|đang).*(giảm\sgiá|khuyến\smãi|sale|ưu\sđãi)",
+                    r"món\s(nào|gì).*(rẻ|giảm)",
                     r"combo\s(gì|nào)",
+                    r"(chương\strình|CT).*(giảm|khuyến\smãi|ưu\sđãi)",
+                    r"(hôm\snay|hiện\stại).*(giảm\sgiá|khuyến\smãi|ưu\sđãi|sale)",
                 ],
                 "response_type": "promotion_list"
             },
 
-            # 7. Ask about order status
+            # 8. Ask about order status
             "check_order_status": {
                 "priority": 2,
                 "keywords": ["trạng thái", "đơn hàng", "xong chưa", "lâu không"],
@@ -144,7 +167,7 @@ class IntentRecognizer:
                 "response_type": "order_status"
             },
 
-            # 8. Payment intent
+            # 9. Payment intent
             "payment": {
                 "priority": 3,
                 "keywords": ["thanh toán", "trả tiền", "tính tiền", "bill"],

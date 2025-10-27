@@ -1,11 +1,23 @@
-# payment_service.py - Payment processing service for Minitake
+"""Payment Service - Payment processing for Minitake F&B system.
+
+Handles payment initiation, verification, and status updates.
+"""
 import uuid
 import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 
+
 class PaymentService:
+    """Service for handling payment operations."""
+    
     def __init__(self, db, store_id: str):
+        """Initialize payment service.
+        
+        Args:
+            db: MongoDB database instance
+            store_id: Store identifier
+        """
         self.db = db
         self.store_id = store_id
 
@@ -15,7 +27,19 @@ class PaymentService:
         payment_method: str,
         customer_info: Dict = {}
     ) -> Dict:
-        """Initialize payment process"""
+        """Initialize payment process.
+        
+        Args:
+            order_id: Order identifier
+            payment_method: Payment method (momo, zalo_pay, bank_transfer, cash)
+            customer_info: Customer information dictionary
+            
+        Returns:
+            Payment details dictionary
+            
+        Raises:
+            Exception: If order not found or already paid
+        """
 
         # 1. Get order details
         order = await self.db.orders.find_one({

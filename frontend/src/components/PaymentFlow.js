@@ -276,6 +276,27 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
       <p className="text-xs text-gray-500">
         Vui lòng chuyển khoản đúng nội dung để hệ thống tự động xác nhận
       </p>
+
+      {/* TEST BUTTON - Remove in production */}
+      {process.env.NODE_ENV === "development" && paymentData && (
+        <Button
+          onClick={async () => {
+            try {
+              await axios.post(`${API_BASE}/webhooks/test-payment`, {
+                payment_id: paymentData.payment_id,
+                amount: order.total,
+              });
+              toast.success("✅ Test webhook sent! Đợi polling check...");
+            } catch (error) {
+              toast.error("❌ Test failed: " + error.message);
+            }
+          }}
+          variant="outline"
+          className="w-full border-orange-300 text-orange-600 hover:bg-orange-50"
+        >
+          🧪 TEST: Simulate Payment Success
+        </Button>
+      )}
     </div>
   );
 

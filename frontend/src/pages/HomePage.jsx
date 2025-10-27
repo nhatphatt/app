@@ -87,12 +87,13 @@ const HomePage = () => {
 
   const plans = [
     {
-      name: "Gói Cơ Bản",
+      name: "Free",
       price: "Miễn phí",
       description: "Dành cho quán nhỏ, mới bắt đầu số hóa",
       features: [
-        "Menu điện tử QR",
-        "Quản lý bàn & đơn hàng",
+        "Menu điện tử QR code",
+        "Quản lý bàn & đơn hàng cơ bản",
+        "Thanh toán tiền mặt",
         "Báo cáo doanh thu cơ bản",
         "1 chi nhánh",
         "Hỗ trợ email",
@@ -101,29 +102,50 @@ const HomePage = () => {
       ctaText: "Bắt đầu miễn phí",
     },
     {
-      name: "Gói Nâng Cao",
+      name: "Basic",
       price: "299.000đ/tháng",
-      description: "Cho quán muốn tối ưu trải nghiệm khách hàng",
+      description: "POS bán hàng và quản lý cơ bản",
       features: [
-        "Tất cả tính năng Cơ Bản",
-        "AI gợi ý món ăn",
-        "Báo cáo chuyên sâu",
+        "Tất cả tính năng Free",
+        "POS bán hàng chuyên nghiệp",
+        "KDS (Kitchen Display System)",
+        "Báo cáo doanh thu theo ngày/tuần/tháng",
+        "Quản lý kho & nhập xuất tồn",
         "Tối đa 3 chi nhánh",
         "Hỗ trợ ưu tiên",
       ],
-      highlighted: true,
+      highlighted: false,
       ctaText: "Dùng thử 30 ngày",
-      badge: "Phổ biến",
     },
     {
-      name: "Gói Premium",
-      price: "599.000đ/tháng",
-      description: "Dành cho chuỗi F&B và doanh nghiệp lớn",
+      name: "Standard",
+      price: "699.000đ/tháng",
+      description: "Tối ưu trải nghiệm khách hàng & marketing",
       features: [
-        "Tất cả tính năng Nâng Cao",
-        "Không giới hạn chi nhánh",
+        "Tất cả tính năng Basic",
+        "QR Menu & Self-Order tự động",
+        "Ví điện tử (MoMo, ZaloPay, VietQR)",
+        "Báo cáo & phân tích nâng cao",
+        "CRM quản lý khách hàng",
+        "Chương trình khuyến mãi & loyalty",
+        "Tối đa 5 chi nhánh",
+      ],
+      highlighted: true,
+      badge: "Phổ biến nhất",
+      ctaText: "Dùng thử 30 ngày",
+    },
+    {
+      name: "Pro",
+      price: "1.199.000đ+/tháng",
+      description: "Giải pháp toàn diện cho chuỗi F&B",
+      features: [
+        "Tất cả tính năng Standard",
+        "AI Chatbot & gợi ý món thông minh",
+        "AI Upsell tự động tăng doanh thu",
+        "Menu Engineering & phân tích hiệu suất món",
+        "E-Invoice hóa đơn điện tử",
         "Tích hợp API tùy chỉnh",
-        "Quản lý kho & nhà cung cấp",
+        "Không giới hạn chi nhánh",
         "Hỗ trợ 24/7 chuyên trách",
       ],
       highlighted: false,
@@ -183,7 +205,7 @@ const HomePage = () => {
                 onClick={() => navigate("/admin/register")}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
               >
-                Đăng ký ngay
+                Đăng ký
               </Button>
             </div>
           </div>
@@ -320,43 +342,42 @@ const HomePage = () => {
               Chọn gói phù hợp với bạn
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Dùng thử miễn phí, nâng cấp khi cần. Không ràng buộc, hủy bất kỳ
-              lúc nào.
+              Từ miễn phí đến giải pháp toàn diện - Nâng cấp linh hoạt theo nhu cầu kinh doanh
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {plans.map((plan, index) => (
               <Card
                 key={index}
-                className={`relative ${
+                className={`relative flex flex-col ${
                   plan.highlighted
-                    ? "border-emerald-500 border-2 shadow-2xl scale-105"
+                    ? "border-emerald-500 border-2 shadow-2xl lg:scale-105 z-10"
                     : "border-gray-200 shadow-lg"
                 }`}
               >
                 {plan.badge && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-1">
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+                    <Badge className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-3 py-1 text-xs">
                       {plan.badge}
                     </Badge>
                   </div>
                 )}
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                <CardHeader className="text-center pb-6">
+                  <CardTitle className="text-xl lg:text-2xl mb-2">{plan.name}</CardTitle>
                   <div className="mb-2">
-                    <span className="text-4xl font-bold">{plan.price}</span>
+                    <span className="text-2xl lg:text-3xl font-bold">{plan.price}</span>
                   </div>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-sm">
                     {plan.description}
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-6">
+                <CardContent className="flex-1 flex flex-col">
+                  <ul className="space-y-2 mb-6 flex-1">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-2">
-                        <Check className="h-5 w-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
+                        <Check className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm text-gray-700">{feature}</span>
                       </li>
                     ))}
                   </ul>

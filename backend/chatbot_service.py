@@ -192,29 +192,94 @@ class ChatbotService:
                 "message": "Item not found"
             }
 
+        # Check for active promotions and apply to item
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        
+        promotions = await self.db.promotions.find({
+            "store_id": store_id,
+            "is_active": True,
+            "start_date": {"$lte": now},
+            "end_date": {"$gte": now}
+        }).to_list(100)
+        
+        # Apply promotions to this specific item
+        final_price = item["price"]
+        discount_info = None
+        
+        for promotion in promotions:
+            apply_to = promotion.get('apply_to', '')
+            discount_value = promotion.get('discount_value', 0)
+            promo_type = promotion.get('promotion_type', 'percentage')
+            
+            # Check if promotion applies to this item
+            applies = False
+            
+            if apply_to == 'all':
+                applies = True
+            elif apply_to == 'category' and item.get('category_id') in promotion.get('category_ids', []):
+                applies = True
+            elif apply_to == 'items' and item.get('id') in promotion.get('item_ids', []):
+                applies = True
+            
+            if applies:
+                if promo_type == 'percentage':
+                    discount_amount = item["price"] * (discount_value / 100)
+                    final_price = item["price"] - discount_amount
+                    discount_info = {
+                        "original_price": item["price"],
+                        "discounted_price": final_price,
+                        "discount_percent": discount_value,
+                        "promotion_name": promotion.get('name')
+                    }
+                elif promo_type == 'fixed_amount':
+                    final_price = max(0, item["price"] - discount_value)
+                    discount_percent = (discount_value / item["price"]) * 100 if item["price"] > 0 else 0
+                    discount_info = {
+                        "original_price": item["price"],
+                        "discounted_price": final_price,
+                        "discount_percent": discount_percent,
+                        "promotion_name": promotion.get('name')
+                    }
+                break  # Apply first matching promotion
+
         # Update conversation context
         await self.conversation_manager.add_to_cart_context(session_id, item_id)
 
         # Generate confirmation response
-        price = item.get("discounted_price") or item["price"]
-        total = price * quantity
+        total = final_price * quantity
 
         response_text = f"✅ Đã thêm {quantity}x **{item['name']}** vào giỏ!\n"
-        response_text += f"💰 Giá: {total:,}đ"
+        
+        if discount_info:
+            original_total = discount_info['original_price'] * quantity
+            response_text += f"💰 Giá gốc: ~~{original_total:,.0f}đ~~\n"
+            response_text += f"🎉 Giá khuyến mãi: **{total:,.0f}đ** (giảm {discount_info['discount_percent']:.0f}%)"
+        else:
+            response_text += f"💰 Giá: {total:,.0f}đ"
+        
+        # Add discount_info to item if promotion applied
+        item_with_price = item.copy()
+        if discount_info:
+            item_with_price['discounted_price'] = discount_info['discounted_price']
+            item_with_price['original_price'] = discount_info['original_price']
+            item_with_price['has_promotion'] = True
+            item_with_price['promotion_label'] = f"Giảm {discount_info['discount_percent']:.0f}%"
 
         # Save assistant message
         await self.conversation_manager.add_message(
             session_id=session_id,
             role="assistant",
             content=response_text,
-            metadata={"action": "add_to_cart", "item_id": item_id}
+            metadata={"action": "add_to_cart", "item_id": item_id, "discount_info": discount_info}
         )
 
         return {
             "success": True,
             "message": response_text,
-            "item": item,
-            "quantity": quantity
+            "item": item_with_price,
+            "quantity": quantity,
+            "discount_info": discount_info
         }
 
     async def _handle_remove_from_cart(
