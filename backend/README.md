@@ -67,40 +67,48 @@ API Docs: http://localhost:8000/docs
 ## 📚 API Endpoints
 
 ### Authentication
+
 - `POST /api/register` - Đăng ký tài khoản
 - `POST /api/login` - Đăng nhập
 
 ### Stores
+
 - `GET /api/stores` - Lấy danh sách cửa hàng
 - `POST /api/stores` - Tạo cửa hàng mới
 - `PUT /api/stores/{store_id}` - Cập nhật cửa hàng
 
 ### Public Menu
+
 - `GET /api/public/menu/{store_slug}` - Xem menu công khai
 - `GET /api/public/menu/{store_slug}/table/{table_number}` - Menu cho bàn cụ thể
 
 ### Categories & Menu Items
+
 - `GET /api/categories` - Lấy danh mục
 - `POST /api/categories` - Tạo danh mục
 - `GET /api/menu-items` - Lấy món ăn
 - `POST /api/menu-items` - Tạo món ăn
 
 ### Orders
+
 - `GET /api/orders` - Lấy đơn hàng
 - `POST /api/orders` - Tạo đơn hàng
 - `PATCH /api/orders/{order_id}/status` - Cập nhật trạng thái
 
 ### Promotions
+
 - `GET /api/promotions` - Lấy khuyến mãi
 - `POST /api/promotions` - Tạo khuyến mãi
 - `GET /api/promotions/active` - Khuyến mãi đang hoạt động
 
 ### AI Chatbot
+
 - `POST /api/chatbot/message` - Gửi tin nhắn cho chatbot
 - `GET /api/chatbot/history/{conversation_id}` - Lấy lịch sử chat
 - `GET /api/chatbot/status` - Kiểm tra trạng thái chatbot
 
 ### Payments
+
 - `POST /api/payments/initiate` - Khởi tạo thanh toán
 - `POST /api/payments/webhook` - Webhook từ payment gateway
 - `GET /api/payments/{payment_id}` - Chi tiết thanh toán
@@ -108,7 +116,9 @@ API Docs: http://localhost:8000/docs
 ## 🤖 Chatbot Features
 
 ### Intent Recognition
+
 Chatbot nhận diện các intent:
+
 - `greeting` - Chào hỏi
 - `ask_recommendation` - Xin gợi ý món
 - `ask_item_info` - Hỏi thông tin món
@@ -119,11 +129,13 @@ Chatbot nhận diện các intent:
 - `checkout` - Thanh toán
 
 ### AI-Powered Response
+
 - Sử dụng Google Gemini AI cho phản hồi tự nhiên
 - Fallback template khi AI không khả dụng
 - Context-aware conversations
 
 ### Promotion System
+
 - Category-based promotions
 - Percentage & fixed amount discounts
 - Time-based activation
@@ -144,17 +156,20 @@ python tests/backend/test_final_comprehensive.py
 ## 📝 Best Practices
 
 ### Code Style
+
 - Follow PEP 8
 - Type hints cho functions
 - Docstrings cho classes và methods
 - Async/await cho database operations
 
 ### Error Handling
+
 - Use HTTPException với status codes rõ ràng
 - Log errors với context đầy đủ
 - Return user-friendly error messages
 
 ### Security
+
 - JWT authentication cho protected routes
 - Password hashing với bcrypt
 - Environment variables cho sensitive data
@@ -163,6 +178,7 @@ python tests/backend/test_final_comprehensive.py
 ## 🔄 Database Schema
 
 ### Collections
+
 - `users` - User accounts
 - `stores` - Store information
 - `categories` - Menu categories
@@ -175,16 +191,19 @@ python tests/backend/test_final_comprehensive.py
 ## 🌟 Key Features
 
 1. **Smart Chatbot**
+
    - AI-powered natural language understanding
    - Multi-intent handling
    - Context preservation across conversation
 
 2. **Dynamic Promotions**
+
    - Real-time promotion application
    - Category & item-based targeting
    - Automatic discount calculation
 
 3. **Flexible Payment**
+
    - Multiple payment methods
    - Webhook verification
    - QR code generation

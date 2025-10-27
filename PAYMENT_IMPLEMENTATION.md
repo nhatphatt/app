@@ -5,6 +5,7 @@
 ### Backend Implementation
 
 #### 1. Payment Service (`payment_service.py`)
+
 ```python
 ✅ initiate_payment() - Tạo payment record
 ✅ _handle_bank_qr_payment() - Generate VietQR code
@@ -14,6 +15,7 @@
 ```
 
 **Features:**
+
 - ✅ Generate VietQR URL với amount & content
 - ✅ Payment expiry (15 minutes)
 - ✅ Content matching: `MINITAKE XXXXXXXX`
@@ -22,16 +24,17 @@
 - ✅ Update table status to available
 
 #### 2. API Endpoints (`server.py`)
+
 ```
 ✅ POST /api/payments/initiate
    - Create payment & generate QR code
-   
+
 ✅ GET /api/payments/{id}/poll
    - Frontend polls every 3s to check status
-   
+
 ✅ POST /api/webhooks/bank-transfer
    - Receive webhook from Casso/bank
-   
+
 ✅ POST /api/webhooks/test-payment (DEV ONLY)
    - Simulate successful payment for testing
 ```
@@ -41,6 +44,7 @@
 #### PaymentFlow.js
 
 **Features:**
+
 - ✅ QR code display (VietQR API)
 - ✅ Bank info display (account number, content, etc.)
 - ✅ Countdown timer (15 min expiry)
@@ -49,6 +53,7 @@
 - ✅ **TEST button** (development only) 🧪
 
 **User Flow:**
+
 ```
 1. Customer → Click "Thanh toán"
 2. Select "Chuyển khoản QR"
@@ -69,13 +74,15 @@
 ### Required Services
 
 #### 1. Casso (Free - Recommended)
+
 - **Website**: https://casso.vn
 - **Features**:
   - Connect bank account
   - Real-time webhook notifications
   - Free tier: 1 bank, unlimited transactions
-  
+
 **Setup Steps:**
+
 1. Register account
 2. Connect bank (VCB, VTB, TCB, etc.)
 3. Configure webhook URL:
@@ -88,6 +95,7 @@
 #### 2. Bank Account Configuration
 
 Must configure in admin panel:
+
 ```javascript
 POST /api/payment-methods
 {
@@ -108,6 +116,7 @@ POST /api/payment-methods
 ### Development (Localhost)
 
 **Method 1: Test Button** (Fastest ⚡)
+
 ```
 1. Create order
 2. Choose QR payment
@@ -116,6 +125,7 @@ POST /api/payment-methods
 ```
 
 **Method 2: API Test**
+
 ```bash
 POST /api/webhooks/test-payment
 {
@@ -176,24 +186,27 @@ POST /api/webhooks/test-payment
 ## 🔐 Security Considerations
 
 ### Current Implementation (Development)
+
 - ✅ Payment ID matching via regex
 - ✅ Amount verification
 - ✅ Expiry check (15 minutes)
 - ⚠️ No webhook signature verification
 
 ### Production Requirements
+
 - [ ] **Add webhook signature verification**:
+
   ```python
   # Verify Casso signature
   signature = request.headers.get("X-Casso-Signature")
   secret = os.environ.get("CASSO_WEBHOOK_SECRET")
-  
+
   expected = hmac.new(
       secret.encode(),
       json.dumps(webhook_data).encode(),
       hashlib.sha256
   ).hexdigest()
-  
+
   if signature != expected:
       raise HTTPException(401, "Invalid signature")
   ```
@@ -206,7 +219,9 @@ POST /api/webhooks/test-payment
 ## 📝 Files Modified
 
 ### Backend
+
 1. `backend/payment_service.py`
+
    - Added webhook processing logic
    - Added VietQR generation
    - Added polling endpoint
@@ -217,6 +232,7 @@ POST /api/webhooks/test-payment
    - Added `/payments/{id}/poll` endpoint
 
 ### Frontend
+
 3. `frontend/src/components/PaymentFlow.js`
    - Added QR payment UI
    - Added polling mechanism
@@ -224,6 +240,7 @@ POST /api/webhooks/test-payment
    - Added countdown timer
 
 ### Documentation
+
 4. `PAYMENT_WEBHOOK_SETUP.md` - Existing webhook guide
 5. `PAYMENT_TESTING.md` - New testing guide
 6. `DEPLOYMENT_CHECKLIST.md` - Updated with payment setup
@@ -248,6 +265,7 @@ Your VietQR payment is production-ready when:
 ### Before Production:
 
 1. **Remove TEST features**:
+
    ```javascript
    // In PaymentFlow.js
    // Delete or disable:
@@ -255,18 +273,21 @@ Your VietQR payment is production-ready when:
    ```
 
 2. **Add webhook security**:
+
    ```python
    # In server.py webhook endpoint
    # Add signature verification
    ```
 
 3. **Configure Casso**:
+
    - Register account
    - Connect bank
    - Set webhook URL
    - Test with real transfer
 
 4. **Monitor & Alert**:
+
    - Set up error monitoring
    - Alert on failed webhooks
    - Log all transactions
@@ -280,6 +301,7 @@ Your VietQR payment is production-ready when:
 ## 📞 Support
 
 See detailed guides:
+
 - `PAYMENT_TESTING.md` - How to test
 - `PAYMENT_WEBHOOK_SETUP.md` - How to setup webhook
 - `DEPLOYMENT_CHECKLIST.md` - Production deployment

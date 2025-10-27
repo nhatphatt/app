@@ -7,10 +7,11 @@
 #### Option 1: Test Button (Recommended ⭐)
 
 1. Start servers:
+
    ```bash
    # Backend
    cd backend && uvicorn server:app --reload
-   
+
    # Frontend
    cd frontend && npm start
    ```
@@ -48,6 +49,7 @@ GET http://localhost:8000/api/payments/abc123.../poll
 ### Production Testing (Real Bank)
 
 1. **Setup Casso** (one-time):
+
    - Register at https://casso.vn
    - Connect bank account
    - Configure webhook: `https://your-backend.railway.app/api/webhooks/bank-transfer`
@@ -68,6 +70,7 @@ GET /api/payments/{payment_id}
 ```
 
 Response:
+
 ```json
 {
   "id": "payment_id",
@@ -80,12 +83,12 @@ Response:
 
 ### Common Issues
 
-| Issue | Cause | Solution |
-|-------|-------|----------|
-| QR không hiển thị | Chưa config payment method | Setup bank info in admin panel |
-| Frontend không update | Polling fail hoặc webhook chưa về | Check browser console & backend logs |
-| Webhook không về | Casso chưa config hoặc URL sai | Verify webhook URL in Casso dashboard |
-| Amount mismatch | Khách CK sai số tiền | Manual verification or refund |
+| Issue                 | Cause                             | Solution                              |
+| --------------------- | --------------------------------- | ------------------------------------- |
+| QR không hiển thị     | Chưa config payment method        | Setup bank info in admin panel        |
+| Frontend không update | Polling fail hoặc webhook chưa về | Check browser console & backend logs  |
+| Webhook không về      | Casso chưa config hoặc URL sai    | Verify webhook URL in Casso dashboard |
+| Amount mismatch       | Khách CK sai số tiền              | Manual verification or refund         |
 
 ## 📊 Test Scenarios
 
@@ -106,6 +109,7 @@ Response:
 ## 🔐 Security
 
 Production MUST have:
+
 1. Webhook signature verification (prevent fake webhooks)
 2. Amount validation before marking paid
 3. HTTPS only

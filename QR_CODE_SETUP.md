@@ -1,6 +1,7 @@
 # Hướng dẫn Cấu hình Mã QR cho Bàn
 
 ## Tổng quan
+
 Mỗi bàn sẽ có một mã QR riêng để khách hàng quét và truy cập menu. URL của mã QR được tạo tự động khi thêm bàn mới.
 
 ## Cấu hình
@@ -8,6 +9,7 @@ Mỗi bàn sẽ có một mã QR riêng để khách hàng quét và truy cập 
 ### 1. Môi trường Local (Development)
 
 Trong file `backend/.env`:
+
 ```bash
 FRONTEND_URL="http://localhost:3000"
 ```
@@ -36,6 +38,7 @@ Khi tạo bàn mới, hệ thống sẽ:
 3. Lưu URL này vào database
 
 Ví dụ URL QR code:
+
 - **Local:** `http://localhost:3000/menu/minitake?table=abc-123-def-456`
 - **Production:** `https://your-app.railway.app/menu/minitake?table=abc-123-def-456`
 
@@ -49,14 +52,17 @@ Ví dụ URL QR code:
 ## Troubleshooting
 
 ### QR code dẫn đến URL sai
+
 - Kiểm tra biến `FRONTEND_URL` trong Railway dashboard
 - Đảm bảo không có dấu `/` ở cuối URL
 - Deploy lại sau khi thay đổi biến môi trường
 
 ### QR code không hiển thị
+
 - Kiểm tra console log của frontend
 - Đảm bảo backend đã trả về field `qr_code_url` trong response
 
 ### URL trong QR code không mở được
+
 - Kiểm tra frontend đã deploy thành công
 - Kiểm tra route `/menu/:slug` có hoạt động không

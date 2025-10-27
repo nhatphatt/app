@@ -5,15 +5,17 @@
 ### 1. **Code Organization** ✨
 
 #### Moved Test Files
+
 - Tất cả test files di chuyển từ `backend/` → `tests/backend/`
 - Files moved:
   - `test_*.py` (13 files)
-  - `debug_*.py` 
+  - `debug_*.py`
   - `check_*.py`
   - `clean_*.py`
   - `add_promotion_test.py`
 
 #### New Structure
+
 ```
 backend/
 ├── config/              # ✨ NEW: Centralized configuration
@@ -31,6 +33,7 @@ backend/
 ### 2. **Configuration Management** 🔧
 
 #### Before
+
 ```python
 # Scattered across server.py
 MONGO_URL = os.environ.get("MONGO_URL")
@@ -40,6 +43,7 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 ```
 
 #### After
+
 ```python
 # Centralized in config/settings.py
 from config.settings import settings
@@ -52,6 +56,7 @@ settings.CORS_ORIGINS  # Now a list, not a string
 ```
 
 **Benefits:**
+
 - ✅ Single source of truth
 - ✅ Type safety
 - ✅ Validation on startup
@@ -60,6 +65,7 @@ settings.CORS_ORIGINS  # Now a list, not a string
 ### 3. **Database Connection** 💾
 
 #### Before
+
 ```python
 # Direct connection in server.py
 client = AsyncIOMotorClient(MONGO_URL)
@@ -67,6 +73,7 @@ db = client[DB_NAME]
 ```
 
 #### After
+
 ```python
 # Managed connection with lifecycle
 from config.database import Database
@@ -84,6 +91,7 @@ async def shutdown_event():
 ```
 
 **Benefits:**
+
 - ✅ Proper connection lifecycle
 - ✅ Error handling
 - ✅ Connection pooling
@@ -92,6 +100,7 @@ async def shutdown_event():
 ### 4. **Imports Optimization** 📦
 
 #### Removed Unused Imports
+
 ```python
 # Before
 from pathlib import Path
@@ -104,6 +113,7 @@ from config.database import Database
 ```
 
 #### Organized Imports (PEP 8)
+
 ```python
 # 1. Standard library
 from datetime import datetime, timezone, timedelta
@@ -124,13 +134,14 @@ from config.database import Database
 #### Added Comprehensive Docstrings
 
 **payment_service.py:**
+
 ```python
 class PaymentService:
     """Service for handling payment operations."""
-    
+
     def __init__(self, db, store_id: str):
         """Initialize payment service.
-        
+
         Args:
             db: MongoDB database instance
             store_id: Store identifier
@@ -138,6 +149,7 @@ class PaymentService:
 ```
 
 #### Created README.md
+
 - 📖 Project structure
 - 🚀 Setup instructions
 - 📚 API endpoints list
@@ -148,6 +160,7 @@ class PaymentService:
 ### 6. **Intent Recognition Fix** 🎯
 
 #### Fixed Promotion Query Recognition
+
 ```python
 # ask_promotion intent
 "priority": 4,  # Highest priority
@@ -163,17 +176,20 @@ r"^(?!.*(giảm\sgiá|khuyến\smãi|sale|ưu\sđãi|rẻ\shơn|đang\sgiảm))(
 ```
 
 **Test Results:**
+
 - ✅ 13/13 promotion queries recognized correctly
 - ✅ No more "Mình hơi confused nè..." fallback
 
 ### 7. **CORS Configuration** 🌐
 
 #### Before
+
 ```python
 allow_origins=os.environ.get('CORS_ORIGINS', '*').split(',')
 ```
 
 #### After
+
 ```python
 # In settings.py
 CORS_ORIGINS: list = [
@@ -188,6 +204,7 @@ allow_origins=settings.CORS_ORIGINS
 ```
 
 **Benefits:**
+
 - ✅ Type-safe list
 - ✅ No string splitting
 - ✅ Clear allowed origins
@@ -198,13 +215,13 @@ allow_origins=settings.CORS_ORIGINS
 
 ### Code Quality Metrics
 
-| Metric | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| Files in `backend/` | 23 | 8 | ↓ 65% cleaner |
-| Test files mixed | 15 | 0 | ✅ Separated |
-| Config scattered | Yes | No | ✅ Centralized |
-| Docstrings | Partial | Complete | ✅ 100% coverage |
-| Intent recognition | 85% | 100% | ↑ 15% accuracy |
+| Metric              | Before  | After    | Improvement      |
+| ------------------- | ------- | -------- | ---------------- |
+| Files in `backend/` | 23      | 8        | ↓ 65% cleaner    |
+| Test files mixed    | 15      | 0        | ✅ Separated     |
+| Config scattered    | Yes     | No       | ✅ Centralized   |
+| Docstrings          | Partial | Complete | ✅ 100% coverage |
+| Intent recognition  | 85%     | 100%     | ↑ 15% accuracy   |
 
 ### Best Practices Applied
 
@@ -214,7 +231,7 @@ allow_origins=settings.CORS_ORIGINS
 ✅ **DRY**: No duplicate config code  
 ✅ **Separation of Concerns**: Config, services, models separated  
 ✅ **Error Handling**: Validation on startup  
-✅ **Testing**: All tests in dedicated directory  
+✅ **Testing**: All tests in dedicated directory
 
 ---
 
@@ -223,19 +240,23 @@ allow_origins=settings.CORS_ORIGINS
 ### Future Enhancements
 
 1. **Models Module**
+
    - Extract Pydantic models to `backend/models/`
    - Separate by domain: `user.py`, `store.py`, `order.py`, etc.
 
 2. **Utils Module**
+
    - Create `backend/utils/` for helper functions
    - `auth.py` - JWT utilities
    - `validators.py` - Custom validators
 
 3. **Logging**
+
    - Add structured logging with `logging` module
    - Log rotation and levels by environment
 
 4. **Dependency Injection**
+
    - Use FastAPI's Depends for database injection
    - Better testability
 

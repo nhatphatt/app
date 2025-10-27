@@ -342,7 +342,8 @@ const HomePage = () => {
               Chọn gói phù hợp với bạn
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Từ miễn phí đến giải pháp toàn diện - Nâng cấp linh hoạt theo nhu cầu kinh doanh
+              Từ miễn phí đến giải pháp toàn diện - Nâng cấp linh hoạt theo nhu
+              cầu kinh doanh
             </p>
           </div>
 
@@ -364,9 +365,13 @@ const HomePage = () => {
                   </div>
                 )}
                 <CardHeader className="text-center pb-6">
-                  <CardTitle className="text-xl lg:text-2xl mb-2">{plan.name}</CardTitle>
+                  <CardTitle className="text-xl lg:text-2xl mb-2">
+                    {plan.name}
+                  </CardTitle>
                   <div className="mb-2">
-                    <span className="text-2xl lg:text-3xl font-bold">{plan.price}</span>
+                    <span className="text-2xl lg:text-3xl font-bold">
+                      {plan.price}
+                    </span>
                   </div>
                   <CardDescription className="text-sm">
                     {plan.description}

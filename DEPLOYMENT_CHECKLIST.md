@@ -3,6 +3,7 @@
 ## ✅ Pre-Deployment (Local Testing)
 
 ### Backend Setup
+
 - [ ] Install dependencies: `pip install -r backend/requirements.txt`
 - [ ] Copy `.env.example` to `.env`: `cp backend/.env.example backend/.env`
 - [ ] Configure `.env` with your credentials:
@@ -15,6 +16,7 @@
   ```
 
 ### Local Testing
+
 - [ ] Run backend: `uvicorn backend.server:app --reload --host 0.0.0.0 --port 8000`
 - [ ] Test API docs: http://localhost:8000/docs
 - [ ] Run verification: `python verify_optimization.py`
@@ -26,6 +28,7 @@
 ### Backend Configuration
 
 1. **Environment Variables** (Railway Dashboard → Variables)
+
    ```env
    MONGO_URL=mongodb://mongo:password@host:port
    DB_NAME=minitake_db
@@ -35,6 +38,7 @@
    ```
 
 2. **Build Settings**
+
    - Build Command: `pip install -r backend/requirements.txt`
    - Start Command: `uvicorn backend.server:app --host 0.0.0.0 --port $PORT`
    - Root Directory: `/` (or `backend` if deploying backend only)
@@ -46,6 +50,7 @@
 ### Frontend Configuration (if deploying to Vercel)
 
 1. **Environment Variables**
+
    ```env
    REACT_APP_API_URL=https://your-backend.railway.app/api
    ```
@@ -59,16 +64,19 @@
 ## 🔍 Post-Deployment Verification
 
 ### Backend Health Check
+
 - [ ] Visit: `https://your-backend.railway.app/docs`
 - [ ] Test endpoint: `GET /api/health` or any public endpoint
 - [ ] Check logs in Railway dashboard for errors
 
 ### Database Connection
+
 - [ ] Verify MongoDB connection in logs
 - [ ] Test creating a store via API
 - [ ] Test authentication endpoints
 
 ### Chatbot Testing
+
 - [ ] Send test message: `POST /api/chatbot/message`
 - [ ] Test promotion queries:
   - "Có khuyến mãi gì không?"
@@ -77,6 +85,7 @@
 - [ ] Verify responses are correct (not "Mình hơi confused nè...")
 
 ### Frontend Integration
+
 - [ ] Test menu display
 - [ ] Test chatbot widget
 - [ ] Test add to cart with promotions
@@ -85,6 +94,7 @@
 - [ ] Test QR code scanning
 
 ### Payment Setup (VietQR) 💳
+
 - [ ] Register Casso account: https://casso.vn
 - [ ] Connect bank account in Casso
 - [ ] Configure payment method in admin panel:
@@ -108,36 +118,47 @@
 ## 🐛 Common Issues & Solutions
 
 ### Issue: "Module not found" errors
+
 **Solution:** Make sure all dependencies in `requirements.txt` are installed
+
 ```bash
 pip install -r backend/requirements.txt
 ```
 
 ### Issue: "Database connection failed"
-**Solution:** 
+
+**Solution:**
+
 - Check `MONGO_URL` in environment variables
 - Verify MongoDB is accessible from Railway
 - Check Railway logs for connection errors
 
 ### Issue: Chatbot returns "confused" message
+
 **Solution:**
+
 - Check `GEMINI_API_KEY` is set correctly
 - Verify you haven't exceeded Gemini API quota (50 requests/day for free tier)
 - Test with template fallback (remove `GEMINI_API_KEY` temporarily)
 
 ### Issue: CORS errors in frontend
+
 **Solution:**
+
 - Add frontend URL to `CORS_ORIGINS` in `backend/config/settings.py`
 - Redeploy backend
 
 ### Issue: Import errors with config module
+
 **Solution:**
+
 - Make sure you're running from project root: `uvicorn backend.server:app`
 - Not from backend directory: `cd backend && uvicorn server:app` ❌
 
 ## 📊 Monitoring
 
 ### Logs to Watch
+
 ```bash
 # Railway logs
 railway logs
@@ -149,6 +170,7 @@ railway logs
 ```
 
 ### Performance Metrics
+
 - [ ] API response time < 500ms
 - [ ] Database query time < 100ms
 - [ ] Chatbot response time < 2s (with AI), < 500ms (template)
@@ -176,6 +198,7 @@ railway logs
 ## 🎉 Success Criteria
 
 Your deployment is successful when:
+
 - ✅ API docs are accessible at `/docs`
 - ✅ Database is connected (check logs)
 - ✅ Chatbot responds correctly to all intent types
@@ -187,6 +210,7 @@ Your deployment is successful when:
 ---
 
 **Need Help?**
+
 - Check `backend/README.md` for detailed documentation
 - Review `OPTIMIZATION_SUMMARY.md` for recent changes
 - Run `python verify_optimization.py` to check local setup
