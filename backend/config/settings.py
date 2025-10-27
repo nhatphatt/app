@@ -36,6 +36,7 @@ class Settings:
         "http://localhost:3000",
         "http://localhost:3001",
         "https://minitake.vercel.app",
+        "https://minitakefood.up.railway.app",  # Frontend Railway deployment
         FRONTEND_URL
     ]
     
