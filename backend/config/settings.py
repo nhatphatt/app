@@ -38,24 +38,24 @@ class Settings:
     # Security Configuration
     WEBHOOK_SECRET: str = os.environ.get('WEBHOOK_SECRET', '')
     
-    # CORS Configuration - Strict in production
+    # CORS Configuration - Allow both dev and prod origins
     @classmethod
     def get_cors_origins(cls) -> list:
-        """Get CORS origins based on environment."""
-        if cls.ENVIRONMENT == 'production':
-            # Production: Only allow specific domains
-            return [
-                cls.FRONTEND_URL,
-                "https://minitake.vercel.app",
-                "https://minitakefood.up.railway.app",
-            ]
-        else:
-            # Development: Allow localhost
-            return [
-                "http://localhost:3000",
-                "http://localhost:3001",
-                cls.FRONTEND_URL
-            ]
+        """Get CORS origins - includes both dev and production for flexibility."""
+        origins = [
+            # Production domains
+            "https://minitake.vercel.app",
+            "https://minitakefood.up.railway.app",
+            # Development
+            "http://localhost:3000",
+            "http://localhost:3001",
+        ]
+        
+        # Add FRONTEND_URL if not already in list
+        if cls.FRONTEND_URL and cls.FRONTEND_URL not in origins:
+            origins.append(cls.FRONTEND_URL)
+        
+        return origins
     
     @classmethod
     def validate(cls) -> None:
