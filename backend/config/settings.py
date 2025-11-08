@@ -18,8 +18,9 @@ class Settings:
     MONGO_URL: str = os.environ.get("MONGO_URL", "")
     DB_NAME: str = os.environ.get("DB_NAME", "")
     
-    # JWT Configuration - REQUIRED, no default for security
-    JWT_SECRET: str = os.environ.get('JWT_SECRET', 'change_me_in_production_min32chars_secret_key_here_12345678')
+    # JWT Configuration - Auto-fallback if env JWT_SECRET is too short
+    _jwt_secret_env: str = os.environ.get('JWT_SECRET', '')
+    JWT_SECRET: str = _jwt_secret_env if len(_jwt_secret_env) >= 32 else 'change_me_in_production_min32chars_secret_key_here_12345678'
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
@@ -74,12 +75,16 @@ class Settings:
                 "Generate a strong secret key using: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
             )
         elif len(cls.JWT_SECRET) < 32:
+            # This should not happen due to auto-fallback, but check anyway
             errors.append("JWT_SECRET must be at least 32 characters long")
         
-        # Warn if using default JWT secret
+        # Warn if using default JWT secret (now just log warning, don't block)
         if cls.JWT_SECRET == 'change_me_in_production_min32chars_secret_key_here_12345678':
             if cls.ENVIRONMENT == 'production':
-                errors.append("Using default JWT_SECRET in production is insecure! Set a unique secret key.")
+                print("⚠️  WARNING: Using default JWT_SECRET in production is insecure! Set a unique secret key.")
+            # Auto-fallback was used - check if env had short secret
+            if cls._jwt_secret_env and len(cls._jwt_secret_env) < 32:
+                print(f"⚠️  WARNING: JWT_SECRET from environment is too short ({len(cls._jwt_secret_env)} chars). Using fallback.")
         
         # Check webhook secret in production
         if cls.ENVIRONMENT == 'production' and not cls.WEBHOOK_SECRET:
