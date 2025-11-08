@@ -1,14 +1,21 @@
 """Main FastAPI application server."""
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, Request, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, ConfigDict, EmailStr
+from pydantic import BaseModel, Field, ConfigDict, EmailStr, field_validator
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import uuid
 import bcrypt
 import jwt
+import re
+import hmac
+import hashlib
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from config.settings import settings
 from config.database import Database
@@ -83,6 +90,12 @@ app = FastAPI(
     version="1.0.0",
     openapi_tags=tags_metadata
 )
+
+# Rate Limiter Setup
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
@@ -115,6 +128,32 @@ class UserRegister(BaseModel):
     name: str
     store_name: str
     store_slug: str
+    
+    @field_validator('password')
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Validate password strength for security."""
+        if len(v) < 8:
+            raise ValueError('Mật khẩu phải có ít nhất 8 ký tự')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Mật khẩu phải chứa ít nhất 1 chữ hoa')
+        if not re.search(r'[a-z]', v):
+            raise ValueError('Mật khẩu phải chứa ít nhất 1 chữ thường')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Mật khẩu phải chứa ít nhất 1 số')
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError('Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (!@#$%^&*...)')
+        return v
+    
+    @field_validator('store_slug')
+    @classmethod
+    def validate_slug(cls, v: str) -> str:
+        """Validate store slug format."""
+        if not re.match(r'^[a-z0-9-]+$', v):
+            raise ValueError('Slug chỉ được chứa chữ thường, số và dấu gạch ngang')
+        if len(v) < 3:
+            raise ValueError('Slug phải có ít nhất 3 ký tự')
+        return v
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -250,7 +289,7 @@ class TableUpdate(BaseModel):
     capacity: Optional[int] = None
     status: Optional[str] = None
 
-# ============ AUTH HELPERS ============
+# ============ AUTH & SECURITY HELPERS ============
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
@@ -263,6 +302,31 @@ def create_access_token(data: dict) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_webhook_signature(payload: str, signature: str, secret: str) -> bool:
+    """
+    Verify webhook signature using HMAC-SHA256.
+    
+    Args:
+        payload: Raw webhook payload string
+        signature: Signature from webhook header
+        secret: Webhook secret key
+        
+    Returns:
+        True if signature is valid, False otherwise
+    """
+    if not secret:
+        # If no secret configured, skip verification in development
+        # This should never happen in production due to settings validation
+        return settings.ENVIRONMENT != 'production'
+    
+    computed_signature = hmac.new(
+        secret.encode('utf-8'),
+        payload.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return hmac.compare_digest(computed_signature, signature)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -284,7 +348,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 # ============ AUTH ROUTES ============
 
 @api_router.post("/auth/register", response_model=TokenResponse, tags=["Authentication"])
-async def register(input: UserRegister):
+@limiter.limit("3/hour")  # Max 3 registrations per hour per IP
+async def register(request: Request, input: UserRegister):
     # Check if email exists
     existing_user = await db.users.find_one({"email": input.email})
     if existing_user:
@@ -339,7 +404,8 @@ async def register(input: UserRegister):
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse, tags=["Authentication"])
-async def login(input: UserLogin):
+@limiter.limit("5/minute")  # Max 5 login attempts per minute per IP
+async def login(request: Request, input: UserLogin):
     user = await db.users.find_one({"email": input.email}, {"_id": 0})
     if not user or not verify_password(input.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -1332,13 +1398,21 @@ async def confirm_cash_payment(
         raise HTTPException(400, str(e))
 
 @api_router.post("/webhooks/bank-transfer", tags=["Payments"])
-async def bank_transfer_webhook(webhook_data: dict):
+async def bank_transfer_webhook(
+    request: Request,
+    webhook_data: dict,
+    x_webhook_signature: Optional[str] = Header(None)
+):
     """
     Webhook endpoint for bank transfer notifications
 
     Supports Casso and similar banking webhook services.
     Configure this URL in your banking service:
     https://yourdomain.com/api/webhooks/bank-transfer
+
+    Security:
+    - In production, requires X-Webhook-Signature header for verification
+    - Signature is HMAC-SHA256 of request body using WEBHOOK_SECRET
 
     Expected webhook format:
     {
@@ -1350,8 +1424,17 @@ async def bank_transfer_webhook(webhook_data: dict):
     }
     """
     try:
-        # For now, accept any webhook - in production, verify signature/token
-        # TODO: Add webhook signature verification
+        # Verify webhook signature in production
+        if settings.ENVIRONMENT == 'production':
+            if not x_webhook_signature:
+                return {"status": "error", "message": "Missing webhook signature"}
+            
+            # Get raw request body for signature verification
+            body = await request.body()
+            payload_str = body.decode('utf-8')
+            
+            if not verify_webhook_signature(payload_str, x_webhook_signature, settings.WEBHOOK_SECRET):
+                return {"status": "error", "message": "Invalid webhook signature"}
 
         # Try to extract store_id from description or use first store
         # This is a simplified approach - in production, use proper routing
@@ -1366,7 +1449,8 @@ async def bank_transfer_webhook(webhook_data: dict):
     except Exception as e:
         # Don't raise HTTPException - banking services expect 200 OK
         # Log error instead
-        print(f"Webhook processing error: {str(e)}")
+        import logging
+        logging.error(f"Webhook processing error: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
 @api_router.post("/webhooks/test-payment", tags=["Payments"])
@@ -2027,7 +2111,7 @@ async def get_chatbot_ai_status():
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.get_cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

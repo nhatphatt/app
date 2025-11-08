@@ -11,12 +11,15 @@ load_dotenv(ROOT_DIR / '.env')
 class Settings:
     """Application settings."""
     
+    # Environment
+    ENVIRONMENT: str = os.environ.get('ENVIRONMENT', 'development')
+    
     # MongoDB Configuration
     MONGO_URL: str = os.environ.get("MONGO_URL", "")
     DB_NAME: str = os.environ.get("DB_NAME", "")
     
-    # JWT Configuration
-    JWT_SECRET: str = os.environ.get('JWT_SECRET', 'minitake-secret-key-change-in-production')
+    # JWT Configuration - REQUIRED, no default for security
+    JWT_SECRET: str = os.environ.get('JWT_SECRET', '')
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
@@ -31,22 +34,55 @@ class Settings:
     # Gemini AI Configuration
     GEMINI_API_KEY: str = os.environ.get('GEMINI_API_KEY', '')
     
-    # CORS Configuration
-    CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "https://minitake.vercel.app",
-        "https://minitakefood.up.railway.app",  # Frontend Railway deployment
-        FRONTEND_URL
-    ]
+    # Security Configuration
+    WEBHOOK_SECRET: str = os.environ.get('WEBHOOK_SECRET', '')
+    
+    # CORS Configuration - Strict in production
+    @classmethod
+    def get_cors_origins(cls) -> list:
+        """Get CORS origins based on environment."""
+        if cls.ENVIRONMENT == 'production':
+            # Production: Only allow specific domains
+            return [
+                cls.FRONTEND_URL,
+                "https://minitake.vercel.app",
+                "https://minitakefood.up.railway.app",
+            ]
+        else:
+            # Development: Allow localhost
+            return [
+                "http://localhost:3000",
+                "http://localhost:3001",
+                cls.FRONTEND_URL
+            ]
     
     @classmethod
     def validate(cls) -> None:
         """Validate required settings."""
-        if not cls.MONGO_URL or not cls.DB_NAME:
+        errors = []
+        
+        # Check required database settings
+        if not cls.MONGO_URL:
+            errors.append("MONGO_URL is required")
+        if not cls.DB_NAME:
+            errors.append("DB_NAME is required")
+        
+        # Check JWT secret - CRITICAL for security
+        if not cls.JWT_SECRET:
+            errors.append(
+                "JWT_SECRET is required for security. "
+                "Generate a strong secret key using: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            )
+        elif len(cls.JWT_SECRET) < 32:
+            errors.append("JWT_SECRET must be at least 32 characters long")
+        
+        # Check webhook secret in production
+        if cls.ENVIRONMENT == 'production' and not cls.WEBHOOK_SECRET:
+            errors.append("WEBHOOK_SECRET is required in production for webhook verification")
+        
+        if errors:
             raise ValueError(
-                "Missing required environment variables. "
-                "Please set MONGO_URL and DB_NAME in your .env file."
+                "Configuration validation failed:\n" + "\n".join(f"  - {err}" for err in errors)
             )
 
 
