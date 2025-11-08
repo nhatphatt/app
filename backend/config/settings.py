@@ -19,7 +19,7 @@ class Settings:
     DB_NAME: str = os.environ.get("DB_NAME", "")
     
     # JWT Configuration - REQUIRED, no default for security
-    JWT_SECRET: str = os.environ.get('JWT_SECRET', '')
+    JWT_SECRET: str = os.environ.get('JWT_SECRET', 'change_me_in_production_min32chars_secret_key_here_12345678')
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
@@ -75,6 +75,11 @@ class Settings:
             )
         elif len(cls.JWT_SECRET) < 32:
             errors.append("JWT_SECRET must be at least 32 characters long")
+        
+        # Warn if using default JWT secret
+        if cls.JWT_SECRET == 'change_me_in_production_min32chars_secret_key_here_12345678':
+            if cls.ENVIRONMENT == 'production':
+                errors.append("Using default JWT_SECRET in production is insecure! Set a unique secret key.")
         
         # Check webhook secret in production
         if cls.ENVIRONMENT == 'production' and not cls.WEBHOOK_SECRET:
