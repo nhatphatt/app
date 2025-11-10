@@ -87,69 +87,44 @@ const HomePage = () => {
 
   const plans = [
     {
-      name: "Free",
-      price: "Miễn phí",
-      description: "Dành cho quán nhỏ, mới bắt đầu số hóa",
+      name: "Miễn phí",
+      price: "Bắt đầu dùng thử 3 tháng",
+      description: "Dành cho quán nhỏ hoặc thử nghiệm",
       features: [
         "Menu điện tử QR code",
         "Quản lý bàn & đơn hàng cơ bản",
         "Thanh toán tiền mặt",
         "Báo cáo doanh thu cơ bản",
-        "1 chi nhánh",
-        "Hỗ trợ email",
       ],
       highlighted: false,
-      ctaText: "Bắt đầu miễn phí",
+      ctaText: "Bắt đầu dùng thử 3 tháng",
     },
     {
-      name: "Basic",
-      price: "299.000đ/tháng",
-      description: "POS bán hàng và quản lý cơ bản",
+      name: "Cá nhân",
+      price: "199.000đ/tháng",
+      description: "Gói phù hợp cho quán nhỏ có nhu cầu nâng cao",
       features: [
-        "Tất cả tính năng Free",
-        "POS bán hàng chuyên nghiệp",
-        "KDS (Kitchen Display System)",
-        "Báo cáo doanh thu theo ngày/tuần/tháng",
-        "Quản lý kho & nhập xuất tồn",
-        "Tối đa 3 chi nhánh",
-        "Hỗ trợ ưu tiên",
-      ],
-      highlighted: false,
-      ctaText: "Dùng thử 30 ngày",
-    },
-    {
-      name: "Standard",
-      price: "699.000đ/tháng",
-      description: "Tối ưu trải nghiệm khách hàng & marketing",
-      features: [
-        "Tất cả tính năng Basic",
-        "QR Menu & Self-Order tự động",
-        "Ví điện tử (MoMo, ZaloPay, VietQR)",
-        "Báo cáo & phân tích nâng cao",
-        "CRM quản lý khách hàng",
-        "Chương trình khuyến mãi & loyalty",
-        "Tối đa 5 chi nhánh",
+        "Tất cả tính năng Miễn phí",
+        "POS bán hàng cơ bản",
+        "Báo cáo nâng cao",
+        "Hỗ trợ thanh toán điện tử",
       ],
       highlighted: true,
-      badge: "Phổ biến nhất",
-      ctaText: "Dùng thử 30 ngày",
+      badge: "Phổ biến",
+      ctaText: "Đăng ký 199K/tháng",
     },
     {
-      name: "Pro",
-      price: "1.199.000đ+/tháng",
-      description: "Giải pháp toàn diện cho chuỗi F&B",
+      name: "Doanh nghiệp",
+      price: "399.000đ/tháng",
+      description: "Giải pháp cho chuỗi & doanh nghiệp - có tư vấn",
       features: [
-        "Tất cả tính năng Standard",
-        "AI Chatbot & gợi ý món thông minh",
-        "AI Upsell tự động tăng doanh thu",
-        "Menu Engineering & phân tích hiệu suất món",
-        "E-Invoice hóa đơn điện tử",
-        "Tích hợp API tùy chỉnh",
-        "Không giới hạn chi nhánh",
-        "Hỗ trợ 24/7 chuyên trách",
+        "Tất cả tính năng Cá nhân",
+        "Quản lý đa chi nhánh",
+        "Tích hợp API & hóa đơn điện tử",
+        "Hỗ trợ triển khai & đào tạo",
       ],
       highlighted: false,
-      ctaText: "Liên hệ tư vấn",
+      ctaText: "Đăng ký 399K/tháng / Liên hệ để được tư vấn",
     },
   ];
 
@@ -347,7 +322,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
             {plans.map((plan, index) => (
               <Card
                 key={index}
