@@ -129,17 +129,6 @@ const AdminLogin = () => {
       <div className="absolute top-12 right-12 w-24 h-24 bg-gradient-to-br from-yellow-100 to-amber-200 rounded-full opacity-40 blur-sm"></div>
       <div className="absolute top-14 right-14 w-20 h-20 bg-gradient-to-br from-yellow-50 to-amber-100 rounded-full opacity-60"></div>
 
-      {/* Sparkle Effects */}
-      <div className="absolute top-1/4 left-1/4 animate-pulse-slow">
-        <Sparkles className="w-6 h-6 text-emerald-400/40" />
-      </div>
-      <div className="absolute top-1/3 right-1/3 animate-pulse-slower">
-        <Sparkles className="w-5 h-5 text-teal-400/30" />
-      </div>
-      <div className="absolute bottom-1/3 left-1/5 animate-pulse">
-        <Sparkles className="w-4 h-4 text-cyan-400/35" />
-      </div>
-
       {/* Login Card */}
       <Card className="w-full max-w-md relative z-10 shadow-2xl border-0 backdrop-blur-sm bg-white/95 animate-fade-in-up">
         {/* Glow Effect */}
@@ -233,12 +222,6 @@ const AdminLogin = () => {
               </Link>
             </div>
 
-            {/* Footer decoration */}
-            <div className="pt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
-              <Sparkles className="w-3 h-3" />
-              <span>Nền tảng quản lý F&B thông minh</span>
-              <Sparkles className="w-3 h-3" />
-            </div>
           </CardContent>
         </div>
       </Card>

@@ -26,6 +26,7 @@ import {
   Check,
   Loader2,
   CreditCard,
+  UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
@@ -350,130 +351,143 @@ const CustomerMenu = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      <div className="min-h-screen flex items-center justify-center theme-customer">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   if (!store) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Không tìm thấy cửa hàng</p>
+      <div className="min-h-screen flex items-center justify-center theme-customer">
+        <p className="text-muted-foreground">Không tìm thấy cửa hàng</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
+    <div className="theme-customer min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-40">
+      <header className="bg-card shadow-sm sticky top-0 z-40 border-b border-border/50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {store.logo && (
+            {store.logo ? (
               <img
                 src={store.logo}
                 alt={store.name}
-                className="h-12 w-12 object-contain rounded-lg"
+                className="h-12 w-12 object-contain rounded-lg bg-muted/20"
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
               />
+            ) : (
+              <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <UtensilsCrossed className="h-6 w-6" />
+              </div>
             )}
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{store.name}</h1>
+              <h1 className="text-xl font-bold text-foreground">{store.name}</h1>
               {tableInfo && (
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge className="bg-emerald-600 text-white">
+                  <Badge className="bg-primary text-primary-foreground hover:bg-primary/90">
                     {tableInfo.table_number}
                   </Badge>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm text-muted-foreground">
                     ({tableInfo.capacity} chỗ)
                   </span>
                 </div>
               )}
               {store.address && !tableInfo && (
-                <p className="text-sm text-gray-600">{store.address}</p>
+                <p className="text-sm text-muted-foreground line-clamp-1">{store.address}</p>
               )}
             </div>
           </div>
           <Sheet open={cartOpen} onOpenChange={setCartOpen}>
             <SheetTrigger asChild>
-              <Button className="relative bg-emerald-600 hover:bg-emerald-700">
+              <Button className="relative bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
                 <ShoppingCart className="h-5 w-5" />
                 {cart.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 bg-red-500 text-white px-2 py-0.5">
+                  <Badge className="absolute -top-2 -right-2 bg-secondary text-secondary-foreground px-2 py-0.5 border-2 border-background">
                     {cart.length}
                   </Badge>
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-lg">
+            <SheetContent className="w-full sm:max-w-lg theme-customer">
               <SheetHeader>
-                <SheetTitle>Giỏ hàng</SheetTitle>
+                <SheetTitle>Giỏ hàng của bạn</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 space-y-4 h-full flex flex-col">
                 {cart.length === 0 ? (
-                  <p className="text-center text-gray-500 py-8">
-                    Giỏ hàng trống
-                  </p>
+                  <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
+                    <ShoppingCart className="h-12 w-12 mb-4 opacity-20" />
+                    <p>Giỏ hàng đang trống</p>
+                    <Button
+                      variant="link"
+                      className="text-primary mt-2"
+                      onClick={() => setCartOpen(false)}
+                    >
+                      Tiếp tục xem menu
+                    </Button>
+                  </div>
                 ) : (
                   <>
-                    <div className="space-y-3 max-h-96 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-3">
                       {cart.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-center gap-3 bg-white p-3 rounded-lg border"
+                          className="flex items-center gap-3 bg-card p-3 rounded-lg border border-border shadow-sm"
                         >
                           <div className="flex-1">
-                            <h4 className="font-medium">{item.name}</h4>
-                            <p className="text-sm text-gray-600">
+                            <h4 className="font-medium text-foreground">{item.name}</h4>
+                            <p className="text-sm text-primary font-semibold">
                               {(item.price || 0).toLocaleString("vi-VN")} đ
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1">
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-7 w-7 hover:bg-background"
                               onClick={() => updateQuantity(item.id, -1)}
                             >
-                              <Minus className="h-4 w-4" />
+                              <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="w-8 text-center font-medium">
+                            <span className="w-8 text-center font-medium text-sm">
                               {item.quantity}
                             </span>
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="h-8 w-8"
+                              className="h-7 w-7 hover:bg-background"
                               onClick={() => updateQuantity(item.id, 1)}
                             >
-                              <Plus className="h-4 w-4" />
+                              <Plus className="h-3 w-3" />
                             </Button>
                           </div>
                           <Button
                             variant="ghost"
                             size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
                             onClick={() => removeFromCart(item.id)}
                           >
-                            <X className="h-4 w-4 text-red-500" />
+                            <X className="h-4 w-4" />
                           </Button>
                         </div>
                       ))}
                     </div>
-                    <div className="border-t pt-4 space-y-4">
+                    <div className="border-t pt-4 space-y-4 mt-auto">
                       <div className="flex justify-between items-center text-xl font-bold">
                         <span>Tổng cộng:</span>
-                        <span className="text-emerald-600">
+                        <span className="text-primary">
                           {getTotalPrice().toLocaleString("vi-VN")} đ
                         </span>
                       </div>
                       <Button
-                        className="w-full bg-emerald-600 hover:bg-emerald-700"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-lg shadow-lg shadow-primary/20"
                         onClick={handleCheckout}
                       >
-                        Đặt món
+                        Đặt món ngay
                       </Button>
                     </div>
                   </>
@@ -485,90 +499,105 @@ const CustomerMenu = () => {
       </header>
 
       {/* Categories Filter */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <Button
-            variant={selectedCategory === "all" ? "default" : "outline"}
-            onClick={() => setSelectedCategory("all")}
-            className={selectedCategory === "all" ? "bg-emerald-600" : ""}
-          >
-            Tất cả
-          </Button>
-          {categories.map((cat) => (
+      <div className="sticky top-[81px] z-30 bg-background/95 backdrop-blur-sm border-b border-border/50 py-3">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             <Button
-              key={cat.id}
-              variant={selectedCategory === cat.id ? "default" : "outline"}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={selectedCategory === cat.id ? "bg-emerald-600" : ""}
+              variant={selectedCategory === "all" ? "default" : "outline"}
+              onClick={() => setSelectedCategory("all")}
+              className={`rounded-full px-6 ${selectedCategory === "all"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "hover:text-primary hover:border-primary"
+                }`}
             >
-              {cat.name}
+              Tất cả
             </Button>
-          ))}
+            {categories.map((cat) => (
+              <Button
+                key={cat.id}
+                variant={selectedCategory === cat.id ? "default" : "outline"}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`rounded-full px-6 whitespace-nowrap ${selectedCategory === cat.id
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "hover:text-primary hover:border-primary"
+                  }`}
+              >
+                {cat.name}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Menu Items */}
-      <div className="max-w-7xl mx-auto px-4 pb-12">
+      <div className="max-w-7xl mx-auto px-4 py-6 pb-24">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
             <Card
               key={item.id}
-              className="overflow-hidden hover:shadow-xl transition-shadow animate-fade-in cursor-pointer"
+              className="group overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border-border/50 hover:border-primary/50"
               onClick={() => handleItemClick(item)}
             >
-              {item.image_url && (
-                <div className="h-48 bg-gray-200 overflow-hidden">
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+                {item.image_url ? (
                   <img
                     src={item.image_url}
                     alt={item.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    <UtensilsCrossed className="h-12 w-12 opacity-20" />
+                  </div>
+                )}
+                {item.has_promotion && item.promotion_label && (
+                  <Badge className="absolute top-3 right-3 bg-secondary text-secondary-foreground shadow-lg">
+                    {item.promotion_label}
+                  </Badge>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                  <span className="text-white font-medium">Xem chi tiết</span>
                 </div>
-              )}
+              </div>
+
               <CardContent className="p-4 space-y-3">
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-lg font-bold text-gray-900">
-                      {item.name}
-                    </h3>
-                    {item.has_promotion && item.promotion_label && (
-                      <Badge className="bg-red-500 text-white text-xs shrink-0">
-                        {item.promotion_label}
-                      </Badge>
-                    )}
-                  </div>
+                  <h3 className="text-lg font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                    {item.name}
+                  </h3>
                   {item.description && (
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                       {item.description}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center justify-between">
+
+                <div className="flex items-center justify-between pt-2">
                   <div className="flex flex-col">
                     {item.has_promotion ? (
                       <>
-                        <span className="text-sm text-gray-400 line-through">
+                        <span className="text-xs text-muted-foreground line-through">
                           {item.original_price.toLocaleString("vi-VN")} đ
                         </span>
-                        <span className="text-xl font-bold text-red-600">
+                        <span className="text-lg font-bold text-secondary">
                           {item.discounted_price.toLocaleString("vi-VN")} đ
                         </span>
                       </>
                     ) : (
-                      <span className="text-xl font-bold text-emerald-600">
+                      <span className="text-lg font-bold text-primary">
                         {item.price.toLocaleString("vi-VN")} đ
                       </span>
                     )}
                   </div>
                   <Button
+                    size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       addToCart(item);
                     }}
-                    className="bg-emerald-600 hover:bg-emerald-700"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-full h-9 w-9 p-0 shadow-md shadow-primary/20"
                   >
-                    <Plus className="h-4 w-4 mr-1" />
-                    Thêm
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </div>
               </CardContent>
@@ -579,74 +608,81 @@ const CustomerMenu = () => {
 
       {/* Item Detail Dialog */}
       <Dialog open={itemDetailOpen} onOpenChange={setItemDetailOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-md p-0 overflow-hidden theme-customer bg-card border-none">
           {selectedItem && (
-            <>
-              {selectedItem.image_url && (
-                <div className="w-full h-64 bg-gray-200 rounded-lg overflow-hidden mb-4">
+            <div className="flex flex-col max-h-[90vh]">
+              <div className="relative aspect-[4/3] bg-muted">
+                {selectedItem.image_url ? (
                   <img
                     src={selectedItem.image_url}
                     alt={selectedItem.name}
                     className="w-full h-full object-cover"
                   />
-                </div>
-              )}
-              <DialogHeader>
-                <DialogTitle className="text-2xl flex items-center gap-3">
-                  {selectedItem.name}
-                  {selectedItem.has_promotion &&
-                    selectedItem.promotion_label && (
-                      <Badge className="bg-red-500 text-white">
-                        {selectedItem.promotion_label}
-                      </Badge>
-                    )}
-                </DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                {selectedItem.description && (
-                  <p className="text-gray-700 leading-relaxed">
-                    {selectedItem.description}
-                  </p>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <UtensilsCrossed className="h-16 w-16 text-muted-foreground/20" />
+                  </div>
                 )}
-                <div className="flex items-center justify-between pt-4 border-t">
-                  <div className="flex flex-col">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white rounded-full"
+                  onClick={() => setItemDetailOpen(false)}
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+                {selectedItem.has_promotion && selectedItem.promotion_label && (
+                  <Badge className="absolute bottom-4 left-4 bg-secondary text-secondary-foreground shadow-lg">
+                    {selectedItem.promotion_label}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">{selectedItem.name}</h2>
+                  <div className="mt-2 flex items-baseline gap-3">
                     {selectedItem.has_promotion ? (
                       <>
-                        <span className="text-lg text-gray-400 line-through">
-                          {selectedItem.original_price.toLocaleString("vi-VN")}{" "}
-                          đ
+                        <span className="text-2xl font-bold text-secondary">
+                          {selectedItem.discounted_price.toLocaleString("vi-VN")} đ
                         </span>
-                        <span className="text-3xl font-bold text-red-600">
-                          {selectedItem.discounted_price.toLocaleString(
-                            "vi-VN",
-                          )}{" "}
-                          đ
+                        <span className="text-lg text-muted-foreground line-through">
+                          {selectedItem.original_price.toLocaleString("vi-VN")} đ
                         </span>
                       </>
                     ) : (
-                      <span className="text-3xl font-bold text-emerald-600">
+                      <span className="text-2xl font-bold text-primary">
                         {selectedItem.price.toLocaleString("vi-VN")} đ
                       </span>
                     )}
                   </div>
+                </div>
+
+                {selectedItem.description && (
+                  <p className="text-muted-foreground leading-relaxed">
+                    {selectedItem.description}
+                  </p>
+                )}
+
+                <div className="pt-4">
                   <Button
                     onClick={addToCartFromDetail}
-                    className="bg-emerald-600 hover:bg-emerald-700 px-8"
-                    size="lg"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 text-lg shadow-lg shadow-primary/20"
                   >
                     <Plus className="h-5 w-5 mr-2" />
                     Thêm vào giỏ hàng
                   </Button>
                 </div>
               </div>
-            </>
+            </div>
           )}
         </DialogContent>
       </Dialog>
 
       {/* Checkout Dialog */}
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent>
+        <DialogContent className="theme-customer">
           <DialogHeader>
             <DialogTitle>Thông tin đặt món</DialogTitle>
           </DialogHeader>
@@ -663,6 +699,7 @@ const CustomerMenu = () => {
                   })
                 }
                 placeholder="Nguyễn Văn A"
+                className="focus-visible:ring-primary"
               />
             </div>
             <div className="space-y-2">
@@ -677,6 +714,7 @@ const CustomerMenu = () => {
                   })
                 }
                 placeholder="0123456789"
+                className="focus-visible:ring-primary"
               />
             </div>
             <div className="space-y-2">
@@ -692,9 +730,10 @@ const CustomerMenu = () => {
                 }
                 placeholder="Bàn 5"
                 disabled={!!tableInfo}
+                className="focus-visible:ring-primary"
               />
               {tableInfo && (
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-muted-foreground">
                   Đã tự động nhận diện từ mã QR
                 </p>
               )}
@@ -708,18 +747,19 @@ const CustomerMenu = () => {
                   setCustomerInfo({ ...customerInfo, note: e.target.value })
                 }
                 placeholder="Yêu cầu đặc biệt..."
+                className="focus-visible:ring-primary"
               />
             </div>
             <div className="border-t pt-4">
               <div className="flex justify-between text-lg font-bold mb-4">
                 <span>Tổng tiền:</span>
-                <span className="text-emerald-600">
+                <span className="text-primary">
                   {getTotalPrice().toLocaleString("vi-VN")} đ
                 </span>
               </div>
               <Button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-11"
                 disabled={submitting}
               >
                 {submitting ? (
@@ -738,38 +778,42 @@ const CustomerMenu = () => {
 
       {/* Payment Flow */}
       {currentOrder && (
-        <PaymentFlow
-          order={currentOrder}
-          onSuccess={handlePaymentSuccess}
-          onCancel={handlePaymentCancel}
-          open={paymentOpen}
-        />
+        <div className="theme-customer">
+          <PaymentFlow
+            order={currentOrder}
+            onSuccess={handlePaymentSuccess}
+            onCancel={handlePaymentCancel}
+            open={paymentOpen}
+          />
+        </div>
       )}
 
       {/* Order Status Tracker */}
       {trackingOrderId && (
-        <OrderStatusTracker
-          orderId={trackingOrderId}
-          open={statusTrackerOpen}
-          onClose={() => {
-            setStatusTrackerOpen(false);
-            setTrackingOrderId(null);
-          }}
-        />
+        <div className="theme-customer">
+          <OrderStatusTracker
+            orderId={trackingOrderId}
+            open={statusTrackerOpen}
+            onClose={() => {
+              setStatusTrackerOpen(false);
+              setTrackingOrderId(null);
+            }}
+          />
+        </div>
       )}
 
       {/* Success Dialog */}
       <Dialog open={orderSuccess} onOpenChange={setOrderSuccess}>
-        <DialogContent className="text-center">
-          <div className="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-            <Check className="h-8 w-8 text-emerald-600" />
+        <DialogContent className="text-center theme-customer">
+          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+            <Check className="h-8 w-8 text-primary" />
           </div>
           <DialogHeader>
             <DialogTitle className="text-2xl">
               Thanh toán thành công!
             </DialogTitle>
           </DialogHeader>
-          <p className="text-gray-600">
+          <p className="text-muted-foreground">
             Cảm ơn bạn đã sử dụng dịch vụ. Đang theo dõi trạng thái đơn hàng...
           </p>
           <Button
@@ -780,7 +824,7 @@ const CustomerMenu = () => {
                 setStatusTrackerOpen(true);
               }
             }}
-            className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+            className="mt-4 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             Xem trạng thái
           </Button>
@@ -788,13 +832,15 @@ const CustomerMenu = () => {
       </Dialog>
 
       {/* AI Chatbot Widget */}
-      <ChatbotWidget
-        storeSlug={storeSlug}
-        customerPhone={customerInfo.customer_phone}
-        tableId={tableId}
-        cart={cart}
-        onAddToCart={addToCart}
-      />
+      <div className="theme-customer">
+        <ChatbotWidget
+          storeSlug={storeSlug}
+          customerPhone={customerInfo.customer_phone}
+          tableId={tableId}
+          cart={cart}
+          onAddToCart={addToCart}
+        />
+      </div>
     </div>
   );
 };

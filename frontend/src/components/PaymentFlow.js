@@ -36,7 +36,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
       name: "Tiền mặt",
       icon: <Wallet className="h-6 w-6" />,
       description: "Thanh toán tại quầy",
-      color: "bg-green-100 text-green-700",
+      color: "bg-primary/10 text-primary",
     },
     {
       id: "bank_qr",
@@ -153,7 +153,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
     <div className="space-y-4">
       <div className="text-center mb-6">
         <h3 className="text-2xl font-bold mb-2">Chọn phương thức thanh toán</h3>
-        <div className="text-3xl font-bold text-emerald-600">
+        <div className="text-3xl font-bold text-primary">
           {order.total.toLocaleString("vi-VN")} đ
         </div>
       </div>
@@ -163,18 +163,18 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
           <button
             key={method.id}
             onClick={() => handleSelectMethod(method)}
-            className="w-full p-4 border-2 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 flex items-center gap-4 transition-all group"
+            className="w-full p-4 border-2 rounded-xl hover:border-primary hover:bg-primary/5 flex items-center gap-4 transition-all group"
           >
             <div className={`p-3 rounded-lg ${method.color}`}>
               {method.icon}
             </div>
             <div className="text-left flex-1">
-              <p className="font-semibold text-lg group-hover:text-emerald-700">
+              <p className="font-semibold text-lg group-hover:text-primary">
                 {method.name}
               </p>
-              <p className="text-sm text-gray-500">{method.description}</p>
+              <p className="text-sm text-muted-foreground">{method.description}</p>
             </div>
-            <div className="text-emerald-600">
+            <div className="text-primary">
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -197,16 +197,16 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
 
   const renderCashPayment = () => (
     <div className="text-center space-y-6 py-4">
-      <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
-        <Wallet className="h-12 w-12 text-green-600" />
+      <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto animate-pulse">
+        <Wallet className="h-12 w-12 text-primary" />
       </div>
       <div>
         <h3 className="text-2xl font-bold mb-2">Thanh toán tiền mặt</h3>
-        <p className="text-gray-600 mb-4">Vui lòng thanh toán số tiền</p>
-        <div className="text-4xl font-bold text-emerald-600 mb-2">
+        <p className="text-muted-foreground mb-4">Vui lòng thanh toán số tiền</p>
+        <div className="text-4xl font-bold text-primary mb-2">
           {order.total.toLocaleString("vi-VN")} đ
         </div>
-        <p className="text-sm text-gray-500">tại quầy thu ngân</p>
+        <p className="text-sm text-muted-foreground">tại quầy thu ngân</p>
       </div>
 
       <div className="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4">
@@ -219,9 +219,9 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
         </p>
       </div>
 
-      <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto" />
+      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-muted-foreground">
         Bàn: <strong>{order.table_number}</strong>
       </p>
     </div>
@@ -239,37 +239,37 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
             className="w-64 h-64"
           />
         ) : (
-          <div className="w-64 h-64 flex items-center justify-center bg-gray-100 rounded-lg">
-            <Loader2 className="h-12 w-12 animate-spin text-gray-400" />
+          <div className="w-64 h-64 flex items-center justify-center bg-muted rounded-lg">
+            <Loader2 className="h-12 w-12 animate-spin text-muted-foreground" />
           </div>
         )}
       </div>
 
       <div className="space-y-2">
-        <div className="text-3xl font-bold text-emerald-600">
+        <div className="text-3xl font-bold text-primary">
           {order.total.toLocaleString("vi-VN")} đ
         </div>
 
         {paymentData?.bank_info && (
-          <div className="bg-gray-50 rounded-lg p-4 text-left space-y-2">
+          <div className="bg-muted/30 rounded-lg p-4 text-left space-y-2">
             <div className="grid grid-cols-3 gap-2 text-sm">
-              <span className="text-gray-500">Ngân hàng:</span>
+              <span className="text-muted-foreground">Ngân hàng:</span>
               <span className="col-span-2 font-semibold">
                 {paymentData.bank_info.bank_name}
               </span>
 
-              <span className="text-gray-500">Số TK:</span>
+              <span className="text-muted-foreground">Số TK:</span>
               <span className="col-span-2 font-mono font-semibold">
                 {paymentData.bank_info.account_number}
               </span>
 
-              <span className="text-gray-500">Chủ TK:</span>
+              <span className="text-muted-foreground">Chủ TK:</span>
               <span className="col-span-2 font-semibold">
                 {paymentData.bank_info.account_name}
               </span>
 
-              <span className="text-gray-500">Nội dung:</span>
-              <span className="col-span-2 font-mono text-emerald-600 font-bold">
+              <span className="text-muted-foreground">Nội dung:</span>
+              <span className="col-span-2 font-mono text-primary font-bold">
                 {paymentData.bank_info.content}
               </span>
             </div>
@@ -291,7 +291,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
         )}
       </div>
 
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         Vui lòng chuyển khoản đúng nội dung để hệ thống tự động xác nhận
       </p>
 
@@ -327,8 +327,8 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
         <h3 className="text-3xl font-bold text-green-600 mb-2">
           Thanh toán thành công!
         </h3>
-        <p className="text-gray-600">Cảm ơn bạn đã sử dụng dịch vụ</p>
-        <p className="text-sm text-gray-500 mt-2">
+        <p className="text-muted-foreground">Cảm ơn bạn đã sử dụng dịch vụ</p>
+        <p className="text-sm text-muted-foreground mt-2">
           Đơn hàng: <strong>{order.id?.substring(0, 8).toUpperCase()}</strong>
         </p>
       </div>
@@ -349,7 +349,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
         <h3 className="text-2xl font-bold text-red-600 mb-2">
           Thanh toán thất bại
         </h3>
-        <p className="text-gray-600">
+        <p className="text-muted-foreground">
           Vui lòng thử lại hoặc chọn phương thức khác
         </p>
       </div>
@@ -359,7 +359,7 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
           setSelectedMethod(null);
           setPaymentData(null);
         }}
-        className="bg-emerald-600 hover:bg-emerald-700"
+        className="bg-primary hover:bg-primary/90 text-primary-foreground"
       >
         Thử lại
       </Button>

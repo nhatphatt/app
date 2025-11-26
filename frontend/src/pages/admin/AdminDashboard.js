@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   DollarSign,
   ShoppingBag,
@@ -13,8 +13,10 @@ import {
   Info,
   XCircle,
   Plus,
-  FileText,
   Gift,
+  ArrowUpRight,
+  ArrowDownRight,
+  Activity
 } from "lucide-react";
 import {
   LineChart,
@@ -30,10 +32,15 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  AreaChart,
+  Area
 } from "recharts";
 import api from "@/utils/api";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
@@ -71,282 +78,151 @@ const AdminDashboard = () => {
       setPaymentMethods(paymentsRes.data);
       setAlerts(alertsRes.data);
     } catch (error) {
+      console.error("Error fetching dashboard data:", error);
       toast.error("Không thể tải dữ liệu thống kê");
     } finally {
       setLoading(false);
     }
   };
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND",
+    }).format(value);
+  };
+
   const statCards = [
     {
       title: "Doanh thu hôm nay",
-      value: stats ? `${stats.today_revenue.toLocaleString("vi-VN")} đ` : "0 đ",
+      value: stats ? formatCurrency(stats.today_revenue) : "0 ₫",
       icon: DollarSign,
-      color: "from-emerald-500 to-teal-600",
-      testId: "today-revenue",
+      trend: "+12.5%",
+      trendUp: true,
+      description: "So với hôm qua",
+      color: "text-emerald-600",
+      bg: "bg-emerald-100/50",
     },
     {
       title: "Đơn hàng hôm nay",
       value: stats ? stats.today_orders : 0,
       icon: ShoppingBag,
-      color: "from-blue-500 to-cyan-600",
-      testId: "today-orders",
+      trend: "+5.2%",
+      trendUp: true,
+      description: "So với hôm qua",
+      color: "text-blue-600",
+      bg: "bg-blue-100/50",
     },
     {
-      title: "Doanh thu tháng này",
-      value: stats ? `${stats.month_revenue.toLocaleString("vi-VN")} đ` : "0 đ",
-      icon: DollarSign,
-      color: "from-green-500 to-emerald-600",
-      testId: "month-revenue",
-    },
-    {
-      title: "Đơn hàng tháng này",
-      value: stats ? stats.month_orders : 0,
-      icon: ShoppingBag,
-      color: "from-indigo-500 to-blue-600",
-      testId: "month-orders",
-    },
-    {
-      title: "Giá trị TB đơn hàng",
-      value: stats
-        ? `${stats.avg_order_value.toLocaleString("vi-VN", { maximumFractionDigits: 0 })} đ`
-        : "0 đ",
-      icon: TrendingUp,
-      color: "from-violet-500 to-purple-600",
-      testId: "avg-order",
-    },
-    {
-      title: "Tổng khách hàng",
-      value: stats ? stats.total_customers : 0,
-      icon: Users,
-      color: "from-pink-500 to-rose-600",
-      testId: "total-customers",
-    },
-    {
-      title: "Khách hàng mới (tháng)",
+      title: "Khách hàng mới",
       value: stats ? stats.new_customers_month : 0,
       icon: Users,
-      color: "from-cyan-500 to-blue-600",
-      testId: "new-customers",
+      trend: "+2.4%",
+      trendUp: true,
+      description: "Trong tháng này",
+      color: "text-violet-600",
+      bg: "bg-violet-100/50",
     },
     {
-      title: "Đơn đang xử lý",
+      title: "Đang xử lý",
       value: stats ? stats.pending_orders : 0,
       icon: Clock,
-      color: "from-orange-500 to-amber-600",
-      testId: "pending-orders",
-    },
-    {
-      title: "Đơn chưa thanh toán",
-      value: stats ? stats.unpaid_orders : 0,
-      icon: CreditCard,
-      color: "from-red-500 to-pink-600",
-      testId: "unpaid-orders",
-    },
-    {
-      title: "Tổng bàn",
-      value: stats ? `${stats.occupied_tables}/${stats.total_tables}` : "0/0",
-      icon: Table2,
-      color: "from-teal-500 to-green-600",
-      testId: "tables",
-    },
-    {
-      title: "Khuyến mãi đang chạy",
-      value: stats ? stats.active_promotions : 0,
-      icon: Gift,
-      color: "from-yellow-500 to-orange-600",
-      testId: "promotions",
-    },
-    {
-      title: "Tổng món ăn",
-      value: stats ? stats.total_menu_items : 0,
-      icon: Package,
-      color: "from-purple-500 to-pink-600",
-      testId: "total-items",
+      trend: "Cần xử lý ngay",
+      trendUp: false,
+      description: "Đơn hàng chờ",
+      color: "text-amber-600",
+      bg: "bg-amber-100/50",
     },
   ];
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: "bg-yellow-100 text-yellow-800",
-      preparing: "bg-blue-100 text-blue-800",
-      ready: "bg-green-100 text-green-800",
-      completed: "bg-gray-100 text-gray-800",
-      cancelled: "bg-red-100 text-red-800",
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: "bg-amber-100 text-amber-700 hover:bg-amber-100/80",
+      preparing: "bg-blue-100 text-blue-700 hover:bg-blue-100/80",
+      ready: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80",
+      completed: "bg-slate-100 text-slate-700 hover:bg-slate-100/80",
+      cancelled: "bg-red-100 text-red-700 hover:bg-red-100/80",
     };
-    return colors[status] || "bg-gray-100 text-gray-800";
-  };
-
-  const getStatusText = (status) => {
-    const texts = {
+    const labels = {
       pending: "Chờ xử lý",
       preparing: "Đang chuẩn bị",
       ready: "Sẵn sàng",
       completed: "Hoàn thành",
       cancelled: "Đã hủy",
     };
-    return texts[status] || status;
+    return (
+      <Badge variant="secondary" className={`${styles[status]} border-0`}>
+        {labels[status] || status}
+      </Badge>
+    );
   };
 
-  const getPaymentMethodText = (method) => {
-    const texts = {
-      cash: "Tiền mặt",
-      bank_qr: "Chuyển khoản",
-      momo: "MoMo",
-      zalopay: "ZaloPay",
-      vnpay: "VNPay",
-      pending: "Chưa chọn",
-      unknown: "Khác",
-    };
-    return texts[method] || method;
-  };
-
-  const getPaymentMethodColor = (method) => {
-    const colors = {
-      cash: "bg-green-100 text-green-800",
-      bank_qr: "bg-blue-100 text-blue-800",
-      momo: "bg-pink-100 text-pink-800",
-      zalopay: "bg-cyan-100 text-cyan-800",
-      vnpay: "bg-orange-100 text-orange-800",
-      pending: "bg-gray-100 text-gray-600",
-      unknown: "bg-gray-100 text-gray-600",
-    };
-    return colors[method] || "bg-gray-100 text-gray-600";
-  };
-
-  const COLORS = [
-    "#10b981",
-    "#3b82f6",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#ec4899",
-  ];
-
-  const AlertIcon = ({ type }) => {
-    switch (type) {
-      case "error":
-        return <XCircle className="h-5 w-5 text-red-500" />;
-      case "warning":
-        return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
-      case "info":
-        return <Info className="h-5 w-5 text-blue-500" />;
-      default:
-        return <Info className="h-5 w-5 text-gray-500" />;
-    }
-  };
+  const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 bg-muted/20 rounded-xl animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-96 bg-muted/20 rounded-xl animate-pulse" />
+          <div className="h-96 bg-muted/20 rounded-xl animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
-        <p className="text-gray-600">Tổng quan hoạt động cửa hàng</p>
-      </div>
-
-      {/* Alerts Section */}
-      {alerts.length > 0 && (
-        <div className="space-y-3">
-          {alerts.map((alert, index) => (
-            <Card
-              key={index}
-              className={`border-l-4 cursor-pointer hover:shadow-md transition-shadow ${
-                alert.type === "error"
-                  ? "border-red-500"
-                  : alert.type === "warning"
-                    ? "border-yellow-500"
-                    : "border-blue-500"
-              }`}
-              onClick={() => navigate(alert.action)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <AlertIcon type={alert.type} />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">
-                      {alert.title}
-                    </h3>
-                    <p className="text-sm text-gray-600">{alert.message}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+    <div className="space-y-8 pb-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">Dashboard</h2>
+          <p className="text-muted-foreground mt-1">
+            Tổng quan hoạt động kinh doanh của nhà hàng hôm nay.
+          </p>
         </div>
-      )}
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button
-          onClick={() => navigate("/admin/orders")}
-          className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all flex flex-col items-center gap-2"
-        >
-          <ShoppingBag className="h-6 w-6" />
-          <span className="font-medium">Xem đơn hàng</span>
-        </button>
-        <button
-          onClick={() => navigate("/admin/menu")}
-          className="p-4 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all flex flex-col items-center gap-2"
-        >
-          <Plus className="h-6 w-6" />
-          <span className="font-medium">Thêm món ăn</span>
-        </button>
-        <button
-          onClick={() => navigate("/admin/promotions")}
-          className="p-4 bg-gradient-to-br from-yellow-500 to-yellow-600 text-white rounded-lg hover:shadow-lg transition-all flex flex-col items-center gap-2"
-        >
-          <Gift className="h-6 w-6" />
-          <span className="font-medium">Khuyến mãi</span>
-        </button>
-        <button
-          onClick={() => navigate("/admin/tables")}
-          className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all flex flex-col items-center gap-2"
-        >
-          <Table2 className="h-6 w-6" />
-          <span className="font-medium">Quản lý bàn</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => navigate("/admin/orders")} className="bg-primary hover:bg-primary/90">
+            <ShoppingBag className="mr-2 h-4 w-4" /> Quản lý đơn hàng
+          </Button>
+          <Button variant="outline" onClick={() => fetchAllData()}>
+            <Activity className="mr-2 h-4 w-4" /> Làm mới
+          </Button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card
-              key={index}
-              className="overflow-hidden hover:shadow-lg transition-shadow animate-slide-up"
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-gray-600">
+            <Card key={index} className="border-border/50 shadow-sm hover:shadow-md transition-all duration-200">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between space-y-0 pb-2">
+                  <p className="text-sm font-medium text-muted-foreground">
                     {stat.title}
-                  </CardTitle>
-                  <div
-                    className={`p-2 rounded-lg bg-gradient-to-br ${stat.color}`}
-                  >
-                    <Icon className="h-5 w-5 text-white" />
+                  </p>
+                  <div className={`p-2 rounded-full ${stat.bg} ${stat.color}`}>
+                    <Icon className="h-4 w-4" />
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-gray-900">
-                  {stat.value}
+                <div className="flex items-baseline justify-between mt-2">
+                  <h3 className="text-2xl font-bold text-foreground">{stat.value}</h3>
+                </div>
+                <div className="flex items-center mt-1">
+                  {stat.trendUp !== undefined && (
+                    <span className={`text-xs font-medium flex items-center ${stat.trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {stat.trendUp ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+                      {stat.trend}
+                    </span>
+                  )}
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {stat.description}
+                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -355,250 +231,183 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
         {/* Revenue Chart */}
-        <Card>
+        <Card className="lg:col-span-4 border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle>Doanh thu 7 ngày gần nhất</CardTitle>
+            <CardTitle>Doanh thu 7 ngày qua</CardTitle>
+            <CardDescription>Biểu đồ thể hiện xu hướng doanh thu trong tuần</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={revenueChart}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value) => `${value.toLocaleString("vi-VN")} đ`}
-                  labelStyle={{ color: "#000" }}
+          <CardContent className="pl-0">
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={revenueChart} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis
+                  dataKey="date"
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
                 />
-                <Legend />
-                <Bar dataKey="revenue" fill="#10b981" name="Doanh thu" />
-              </BarChart>
+                <YAxis
+                  stroke="#888888"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `${value / 1000}k`}
+                />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  formatter={(value) => formatCurrency(value)}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#10b981"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Payment Methods Pie Chart */}
-        <Card>
+        {/* Top Items */}
+        <Card className="lg:col-span-3 border-border/50 shadow-sm">
           <CardHeader>
-            <CardTitle>Phương thức thanh toán</CardTitle>
+            <CardTitle>Món bán chạy nhất</CardTitle>
+            <CardDescription>Top 5 món ăn được yêu thích nhất</CardDescription>
           </CardHeader>
           <CardContent>
-            {paymentMethods.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={paymentMethods}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={(entry) => `${entry.method}: ${entry.count}`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="count"
-                  >
-                    {paymentMethods.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[300px] flex items-center justify-center text-gray-500">
-                Chưa có dữ liệu thanh toán
-              </div>
-            )}
+            <div className="space-y-6">
+              {topItems.top_selling.map((item, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="flex items-center justify-center w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 font-bold text-sm mr-4">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium leading-none text-foreground">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.quantity} đơn hàng</p>
+                  </div>
+                  <div className="font-medium text-sm text-foreground">
+                    {formatCurrency(item.revenue)}
+                  </div>
+                </div>
+              ))}
+              {topItems.top_selling.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">Chưa có dữ liệu</div>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Top Selling Items and Least Selling */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Selling */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 5 món bán chạy</CardTitle>
+      {/* Recent Orders & Payment Methods */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Orders */}
+        <Card className="lg:col-span-2 border-border/50 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Đơn hàng gần đây</CardTitle>
+              <CardDescription>Danh sách 10 đơn hàng mới nhất</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/orders")}>
+              Xem tất cả
+            </Button>
           </CardHeader>
           <CardContent>
-            {topItems.top_selling.length > 0 ? (
-              <div className="space-y-3">
-                {topItems.top_selling.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-green-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-600">
-                          Đã bán: {item.quantity} phần
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-green-600">
-                        {item.revenue.toLocaleString("vi-VN")} đ
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">Chưa có dữ liệu</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Least Selling */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 5 món ít bán nhất</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {topItems.least_selling.length > 0 ? (
-              <div className="space-y-3">
-                {topItems.least_selling.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-orange-50 rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-600">
-                          Đã bán: {item.quantity} phần
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-orange-600">
-                        {item.revenue.toLocaleString("vi-VN")} đ
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-center py-8">Chưa có dữ liệu</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Orders */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Đơn hàng gần đây</CardTitle>
-            <button
-              onClick={() => navigate("/admin/orders")}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Xem tất cả →
-            </button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {recentOrders.length > 0 ? (
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Mã đơn
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Khách hàng
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Bàn
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Tổng tiền
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Thanh toán
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Trạng thái
-                    </th>
-                    <th className="text-left p-3 text-sm font-medium text-gray-600">
-                      Thời gian
-                    </th>
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-lg">Mã đơn</th>
+                    <th className="px-4 py-3">Khách hàng</th>
+                    <th className="px-4 py-3">Tổng tiền</th>
+                    <th className="px-4 py-3">Trạng thái</th>
+                    <th className="px-4 py-3 rounded-r-lg">Thời gian</th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentOrders.map((order) => (
                     <tr
                       key={order.id}
-                      className="border-b hover:bg-gray-50 cursor-pointer"
-                      onClick={() => navigate(`/admin/orders`)}
+                      className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => navigate("/admin/orders")}
                     >
-                      <td className="p-3">
-                        <span className="text-sm font-mono text-gray-600">
-                          #{order.id.slice(0, 8)}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <div>
-                          <p className="text-sm font-medium">
-                            {order.customer_name || "Khách"}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {order.customer_phone}
-                          </p>
+                      <td className="px-4 py-3 font-medium">#{order.id.slice(0, 8)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="font-medium">{order.customer_name || "Khách vãng lai"}</span>
+                          <span className="text-xs text-muted-foreground">{order.table_number ? `Bàn ${order.table_number}` : "Mang về"}</span>
                         </div>
                       </td>
-                      <td className="p-3 text-sm">
-                        {order.table_number || "-"}
-                      </td>
-                      <td className="p-3">
-                        <span className="text-sm font-semibold text-green-600">
-                          {order.total.toLocaleString("vi-VN")} đ
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${getPaymentMethodColor(order.payment_method || "pending")}`}
-                        >
-                          {getPaymentMethodText(
-                            order.payment_method || "pending",
-                          )}
-                        </span>
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.status)}`}
-                        >
-                          {getStatusText(order.status)}
-                        </span>
-                      </td>
-                      <td className="p-3 text-sm text-gray-600">
-                        {new Date(order.created_at).toLocaleString("vi-VN")}
+                      <td className="px-4 py-3 font-medium">{formatCurrency(order.total)}</td>
+                      <td className="px-4 py-3">{getStatusBadge(order.status)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {new Date(order.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </td>
                     </tr>
                   ))}
+                  {recentOrders.length === 0 && (
+                    <tr>
+                      <td colSpan="5" className="px-4 py-8 text-center text-muted-foreground">
+                        Chưa có đơn hàng nào
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
-          ) : (
-            <p className="text-gray-500 text-center py-8">
-              Chưa có đơn hàng nào
-            </p>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* Payment Methods */}
+        <Card className="border-border/50 shadow-sm">
+          <CardHeader>
+            <CardTitle>Phương thức thanh toán</CardTitle>
+            <CardDescription>Tỷ lệ sử dụng các phương thức</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              {paymentMethods.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={paymentMethods}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="count"
+                    >
+                      {paymentMethods.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value, name, props) => [value, props.payload.payload.method]}
+                      contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  Chưa có dữ liệu
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
