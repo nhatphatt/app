@@ -89,38 +89,6 @@ code {
 
         --destructive: 0 62.8% 30.6%;
         --destructive-foreground: 210 40% 98%;
-
-        --border: 217.2 32.6% 17.5%;
-        --input: 217.2 32.6% 17.5%;
-        --ring: 160 84% 39%;
-    }
-
-    /* Customer Theme Override */
-    .theme-customer {
-        --background: 0 0% 100%;
-        --foreground: 20 14.3% 4.1%;
-
-        /* Orange 500 */
-        --primary: 27 96% 61%;
-        --primary-foreground: 60 9.1% 97.8%;
-
-        /* Rose 500 */
-        --secondary: 343 88% 60%;
-        --secondary-foreground: 60 9.1% 97.8%;
-
-        --muted: 60 4.8% 95.9%;
-        --muted-foreground: 25 5.3% 44.7%;
-
-        --accent: 60 4.8% 95.9%;
-        --accent-foreground: 24 9.8% 10%;
-
-        --ring: 27 96% 61%;
-    }
-}
-
-@layer base {
-    * {
-        @apply border-border;
     }
 
     body {

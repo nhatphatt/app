@@ -35,12 +35,16 @@ I have successfully refactored the Minitake frontend to be more modern, professi
 - **Theme-Aware**: Refactored to use `primary` color variables, so it automatically adapts to the active theme (Orange for customers).
 - **Clean UI**: Simplified the payment method selection and status screens.
 
+### Customer Menu (`CustomerMenu.js`)
+- **Green Theme**: Updated primary color to Emerald Green for a fresh, healthy look (buttons, highlights).
+- **Theme-Aware**: Component automatically adapts to the global theme variables.
+
 ### Home Page (`HomePage.jsx`)
-- **Premium Dark Theme**: Completely redesigned with a sophisticated dark aesthetic (`bg-gray-950`).
-- **Glassmorphism**: Extensive use of glass effects on cards, navigation, and sections for a modern, high-end feel.
-- **Vibrant Gradients**: Neon-like gradients (Emerald, Teal, Purple, Blue) against the dark background.
-- **Hero Section**: Immersive dark atmosphere with glowing background meshes.
-- **Feature & Testimonials**: Glass cards that blend seamlessly with the dark theme.
+- **Modern Light Theme**: Converted to a bright, clean design with white backgrounds and high-contrast text.
+- **Hero Section**: Dynamic gradients on light background, clear CTA, and animated entrance effects.
+- **Feature Grid**: Bento Grid style layout with light cards and subtle shadows.
+- **Social Proof**: Added stats strip and testimonials section with light styling.
+- **Glassmorphism**: Applied subtle glass effects to navigation and cards.
 
 ### Login & Register Pages (`AdminLogin.js`, `AdminRegister.js`)
 - **Refined UI**: Removed decorative "beauty" icons for a more professional look.
@@ -49,7 +53,7 @@ I have successfully refactored the Minitake frontend to be more modern, professi
 ## 🚀 How to Verify
 1. **Home Page**:
    - Go to `http://localhost:3000/`
-   - Experience the new entrance animations and modern layout.
+   - Experience the new **Light Theme** layout.
 
 2. **Admin Dashboard**:
    - Go to `http://localhost:3000/admin/login` (Login if needed).
