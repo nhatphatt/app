@@ -27,6 +27,7 @@ import { toast } from "sonner";
 const MenuManagement = () => {
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
@@ -56,17 +57,26 @@ const MenuManagement = () => {
 
   const fetchData = async () => {
     try {
-      const [categoriesRes, itemsRes] = await Promise.all([
+      const [categoriesRes, itemsRes, inventoryRes] = await Promise.all([
         api.get("/categories"),
         api.get("/menu-items"),
+        api.get("/inventory-dishes").catch(() => ({ data: [] })), // Don't fail if inventory doesn't exist
       ]);
       setCategories(categoriesRes.data);
       setMenuItems(itemsRes.data);
+      setInventory(inventoryRes.data);
     } catch (error) {
       toast.error("Không thể tải dữ liệu");
     } finally {
       setLoading(false);
     }
+  };
+
+  const getInventoryStatus = (itemName) => {
+    const invItem = inventory.find(
+      (inv) => inv.dish_name.toLowerCase() === itemName.toLowerCase()
+    );
+    return invItem;
   };
 
   // Category handlers
@@ -764,6 +774,48 @@ const MenuManagement = () => {
                     <p className="text-xs text-gray-500">
                       Danh mục: {category?.name}
                     </p>
+
+                    {/* Inventory Status */}
+                    {(() => {
+                      const invStatus = getInventoryStatus(item.name);
+                      if (invStatus) {
+                        return (
+                          <div className="mt-2 pt-2 border-t">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-500">Tồn kho:</span>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-semibold ${
+                                  invStatus.quantity_in_stock === 0 
+                                    ? 'text-red-600' 
+                                    : invStatus.is_low_stock 
+                                    ? 'text-yellow-600' 
+                                    : 'text-green-600'
+                                }`}>
+                                  {invStatus.quantity_in_stock} {invStatus.unit}
+                                </span>
+                                {invStatus.quantity_in_stock === 0 && (
+                                  <Badge variant="destructive" className="text-xs">Hết hàng</Badge>
+                                )}
+                                {invStatus.is_low_stock && invStatus.quantity_in_stock > 0 && (
+                                  <Badge className="bg-yellow-500 text-xs">Thấp</Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="mt-2 pt-2 border-t">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-gray-500">Tồn kho:</span>
+                              <Badge variant="outline" className="text-xs">
+                                Chưa quản lý
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      }
+                    })()}
                   </CardContent>
                 </Card>
               );

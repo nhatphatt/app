@@ -82,6 +82,14 @@ tags_metadata = [
         "name": "AI Chatbot",
         "description": "Chatbot AI thông minh cho tư vấn và đặt món tự động",
     },
+    {
+        "name": "Inventory Management",
+        "description": "Quản lý số lượng món ăn trong kho và tồn kho",
+    },
+    {
+        "name": "Staff Management",
+        "description": "Quản lý nhân viên, ca làm việc và chấm công",
+    },
 ]
 
 app = FastAPI(
@@ -451,6 +459,106 @@ async def update_my_store(input: StoreUpdate, current_user: dict = Depends(get_c
 
 # ============ HELPER FUNCTIONS ============
 
+async def deduct_inventory_for_order(store_id: str, order_items: List[dict], order_id: str, user_id: str = "system") -> dict:
+    """
+    Automatically deduct inventory when order is placed.
+    
+    Returns:
+        dict with status and warnings about low/out of stock items
+    """
+    warnings = []
+    deductions = []
+    
+    for order_item in order_items:
+        # Find matching inventory item by dish name
+        # We match menu_item name with inventory dish_name
+        item_name = order_item.get("name", "")
+        quantity_ordered = order_item.get("quantity", 0)
+        
+        # Try to find inventory item
+        inventory_item = await db.dishes_inventory.find_one({
+            "store_id": store_id,
+            "dish_name": item_name
+        })
+        
+        if not inventory_item:
+            # No inventory tracking for this item, skip
+            continue
+        
+        # Check current stock
+        current_stock = inventory_item["quantity_in_stock"]
+        
+        if current_stock < quantity_ordered:
+            warnings.append({
+                "dish_name": item_name,
+                "warning": f"Không đủ hàng trong kho. Tồn kho: {current_stock}, Đặt hàng: {quantity_ordered}",
+                "available": current_stock,
+                "ordered": quantity_ordered
+            })
+            # Deduct what's available
+            quantity_to_deduct = current_stock
+        else:
+            quantity_to_deduct = quantity_ordered
+        
+        # Deduct inventory
+        new_stock = max(0, current_stock - quantity_to_deduct)
+        is_low_stock = new_stock <= inventory_item["reorder_threshold"]
+        
+        await db.dishes_inventory.update_one(
+            {"id": inventory_item["id"]},
+            {
+                "$set": {
+                    "quantity_in_stock": new_stock,
+                    "is_low_stock": is_low_stock,
+                    "last_updated": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+        
+        # Record history
+        history_doc = {
+            "id": str(uuid.uuid4()),
+            "inventory_id": inventory_item["id"],
+            "adjustment_type": "subtract",
+            "quantity_before": current_stock,
+            "quantity_after": new_stock,
+            "quantity_changed": -quantity_to_deduct,
+            "reason": f"Bán hàng - Đơn hàng #{order_id[:8]}",
+            "reference_order_id": order_id,
+            "adjusted_by": user_id,
+            "adjusted_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.inventory_history.insert_one(history_doc)
+        
+        deductions.append({
+            "dish_name": item_name,
+            "quantity_deducted": quantity_to_deduct,
+            "new_stock": new_stock,
+            "is_low_stock": is_low_stock
+        })
+        
+        # Add low stock warning
+        if is_low_stock and new_stock > 0:
+            warnings.append({
+                "dish_name": item_name,
+                "warning": f"Tồn kho thấp: {new_stock} {inventory_item['unit']}",
+                "current_stock": new_stock,
+                "threshold": inventory_item["reorder_threshold"]
+            })
+        elif new_stock == 0:
+            warnings.append({
+                "dish_name": item_name,
+                "warning": "Hết hàng trong kho",
+                "current_stock": 0
+            })
+    
+    return {
+        "deductions": deductions,
+        "warnings": warnings,
+        "total_items_deducted": len(deductions)
+    }
+
 async def apply_promotions_to_menu_items(store_id: str, menu_items: List[dict]) -> List[dict]:
     """Apply active promotions to menu items and return updated items with pricing info"""
     from datetime import datetime, timezone
@@ -575,6 +683,25 @@ async def create_public_order(store_slug: str, input: OrderCreate):
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.orders.insert_one(order_doc)
+    
+    # Auto-deduct inventory for ordered items
+    try:
+        inventory_result = await deduct_inventory_for_order(
+            store["id"],
+            [item.model_dump() for item in input.items],
+            order_id,
+            "customer"
+        )
+        
+        # Store inventory warnings in order metadata
+        if inventory_result["warnings"]:
+            await db.orders.update_one(
+                {"id": order_id},
+                {"$set": {"inventory_warnings": inventory_result["warnings"]}}
+            )
+    except Exception as e:
+        # Log error but don't fail order creation
+        print(f"Warning: Inventory deduction failed for order {order_id}: {str(e)}")
 
     return Order(**order_doc)
 
@@ -2106,6 +2233,17 @@ async def get_chatbot_ai_status():
 
     return status
 
+# ============ INVENTORY & STAFF MANAGEMENT ============
+
+from routers.inventory_router import create_inventory_router
+from routers.staff_router import create_staff_routers
+
+# Initialize routers (will be registered after db is available in startup)
+inventory_router = None
+employee_router = None
+shift_router = None
+attendance_router = None
+
 # ============ APP SETUP ============
 
 app.add_middleware(
@@ -2121,10 +2259,23 @@ app.include_router(api_router)
 @app.on_event("startup")
 async def startup_event():
     """Initialize application on startup."""
-    global db
+    global db, inventory_router, employee_router, shift_router, attendance_router
     await db_instance.connect()
     db = db_instance.get_db()
+    
+    # Initialize and register inventory & staff routers
+    inventory_router = create_inventory_router(db, get_current_user)
+    employee_router, shift_router, attendance_router = create_staff_routers(db, get_current_user)
+    
+    # Include routers in API
+    app.include_router(inventory_router, prefix="/api")
+    app.include_router(employee_router, prefix="/api")
+    app.include_router(shift_router, prefix="/api")
+    app.include_router(attendance_router, prefix="/api")
+    
     print("🚀 Minitake F&B System is ready!")
+    print("📦 Inventory Management: Enabled")
+    print("👥 Staff Management: Enabled")
 
 @app.on_event("shutdown")
 async def shutdown_event():

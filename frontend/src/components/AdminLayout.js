@@ -10,6 +10,8 @@ import {
   Grid3x3,
   CreditCard,
   Tag,
+  Package,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logout, getAuthUser } from "@/utils/auth";
@@ -47,6 +49,8 @@ const AdminLayout = () => {
     { path: "/admin/menu", icon: Menu, label: "Quản lý Menu" },
     { path: "/admin/tables", icon: Grid3x3, label: "Quản lý Bàn" },
     { path: "/admin/orders", icon: ShoppingBag, label: "Đơn hàng" },
+    { path: "/admin/inventory", icon: Package, label: "Kho Món Ăn" },
+    { path: "/admin/staff", icon: Users, label: "Nhân Viên" },
     { path: "/admin/promotions", icon: Tag, label: "Khuyến mãi" },
     { path: "/admin/payments", icon: CreditCard, label: "Thanh toán" },
     { path: "/admin/settings", icon: Settings, label: "Cài đặt" },

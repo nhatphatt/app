@@ -16,6 +16,8 @@ import OrdersManagement from "@/pages/admin/OrdersManagement";
 import PromotionManagement from "@/pages/admin/PromotionManagement";
 import StoreSettings from "@/pages/admin/StoreSettings";
 import PaymentSettings from "@/pages/admin/PaymentSettings";
+import InventoryManagement from "@/pages/admin/InventoryManagement";
+import StaffManagement from "@/pages/admin/StaffManagement";
 import AdminLayout from "@/components/AdminLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -51,6 +53,8 @@ function App() {
             <Route path="menu" element={<MenuManagement />} />
             <Route path="tables" element={<TablesManagement />} />
             <Route path="orders" element={<OrdersManagement />} />
+            <Route path="inventory" element={<InventoryManagement />} />
+            <Route path="staff" element={<StaffManagement />} />
             <Route path="promotions" element={<PromotionManagement />} />
             <Route path="payments" element={<PaymentSettings />} />
             <Route path="settings" element={<StoreSettings />} />
