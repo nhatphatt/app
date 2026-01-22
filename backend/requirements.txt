@@ -6,6 +6,7 @@ starlette==0.37.2
 # Database
 motor==3.3.1
 pymongo==4.5.0
+certifi==2024.12.14
 
 # Authentication & Security
 bcrypt==4.1.3

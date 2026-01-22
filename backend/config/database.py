@@ -3,6 +3,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
 from typing import Optional
 import logging
+import certifi
 
 from config.settings import settings
 
@@ -18,7 +19,11 @@ class Database:
     async def connect(cls) -> None:
         """Connect to MongoDB."""
         try:
-            cls.client = AsyncIOMotorClient(settings.MONGO_URL)
+            # Use certifi for SSL certificate verification (fixes SSL issues on cloud platforms)
+            cls.client = AsyncIOMotorClient(
+                settings.MONGO_URL,
+                tlsCAFile=certifi.where()
+            )
             # Test connection
             await cls.client.admin.command('ping')
             logger.info(f"Connected to MongoDB: {settings.DB_NAME}")
