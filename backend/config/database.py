@@ -1,8 +1,9 @@
 """Database connection and utilities."""
 from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo.errors import ConnectionFailure
+from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from typing import Optional
 import logging
+import ssl
 import certifi
 
 from config.settings import settings
@@ -19,17 +20,31 @@ class Database:
     async def connect(cls) -> None:
         """Connect to MongoDB."""
         try:
-            # Use certifi for SSL certificate verification (fixes SSL issues on cloud platforms)
+            # Try with certifi SSL certificates first
             cls.client = AsyncIOMotorClient(
                 settings.MONGO_URL,
-                tlsCAFile=certifi.where()
+                tls=True,
+                tlsCAFile=certifi.where(),
+                serverSelectionTimeoutMS=30000
             )
             # Test connection
             await cls.client.admin.command('ping')
             logger.info(f"Connected to MongoDB: {settings.DB_NAME}")
-        except ConnectionFailure as e:
-            logger.error(f"Failed to connect to MongoDB: {e}")
-            raise
+        except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+            logger.warning(f"SSL connection failed with certifi, trying with tlsAllowInvalidCertificates: {e}")
+            try:
+                # Fallback: Allow invalid certificates (less secure but works on some cloud platforms)
+                cls.client = AsyncIOMotorClient(
+                    settings.MONGO_URL,
+                    tls=True,
+                    tlsAllowInvalidCertificates=True,
+                    serverSelectionTimeoutMS=30000
+                )
+                await cls.client.admin.command('ping')
+                logger.info(f"Connected to MongoDB (with tlsAllowInvalidCertificates): {settings.DB_NAME}")
+            except Exception as fallback_error:
+                logger.error(f"Failed to connect to MongoDB: {fallback_error}")
+                raise
     
     @classmethod
     async def close(cls) -> None:
