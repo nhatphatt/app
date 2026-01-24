@@ -46,6 +46,7 @@ class Settings:
             # Production domains
             "https://minitake.vercel.app",
             "https://minitakefood.up.railway.app",
+            "https://minitake.pages.dev",
             # Development
             "http://localhost:3000",
             "http://localhost:3001",
