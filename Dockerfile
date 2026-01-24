@@ -1,9 +1,11 @@
-# Use Python 3.10 slim image
-FROM python:3.10-slim
+# Use Python 3.12 slim image with updated SSL libraries
+FROM python:3.12-slim
 
-# Install minimal system dependencies
+# Install minimal system dependencies + ca-certificates for SSL
 RUN apt-get update && apt-get install -y \
     gcc \
+    ca-certificates \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
