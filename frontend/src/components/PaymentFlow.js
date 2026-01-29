@@ -45,6 +45,13 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
       description: "Quét mã QR ngân hàng",
       color: "bg-blue-100 text-blue-700",
     },
+    {
+      id: "payos",
+      name: "PayOS",
+      icon: <CreditCard className="h-6 w-6" />,
+      description: "Thanh toán qua ví điện tử (MoMo, ZaloPay, VNPay)",
+      color: "bg-violet-100 text-violet-700",
+    },
   ];
 
   // Countdown timer for QR expiry
@@ -84,7 +91,19 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
 
       setPaymentData(response.data);
 
-      // Start polling for non-cash payments
+      // Handle PayOS - redirect to checkout URL
+      if (method.id === "payos" && response.data.checkout_url) {
+        // Store order info for return
+        localStorage.setItem(
+          `payos_order_${order.id}`,
+          JSON.stringify({ orderId: order.id, timestamp: Date.now() })
+        );
+        // Redirect to PayOS
+        window.location.href = response.data.checkout_url;
+        return;
+      }
+
+      // Start polling for non-cash payments (bank_qr)
       if (method.id !== "cash") {
         startPolling(response.data.payment_id);
       }
@@ -318,6 +337,42 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
     </div>
   );
 
+  const renderPayOSPayment = () => (
+    <div className="text-center space-y-4">
+      <h3 className="text-xl font-bold">Thanh toán qua PayOS</h3>
+
+      <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-4">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+          <p className="font-medium text-violet-800">
+            Đang chuyển đến cổng thanh toán...
+          </p>
+        </div>
+        <p className="text-sm text-violet-600">
+          Bạn sẽ được chuyển đến PayOS để hoàn tất thanh toán
+        </p>
+      </div>
+
+      <div className="text-3xl font-bold text-primary">
+        {order.total.toLocaleString("vi-VN")} đ
+      </div>
+
+      <p className="text-xs text-muted-foreground">
+        Hỗ trợ: MoMo, ZaloPay, VNPay, thẻ ngân hàng
+      </p>
+
+      {/* Continue button in case redirect doesn't work */}
+      {paymentData?.checkout_url && (
+        <Button
+          onClick={() => window.location.href = paymentData.checkout_url}
+          className="w-full bg-violet-600 hover:bg-violet-700"
+        >
+          Tiếp tục thanh toán →
+        </Button>
+      )}
+    </div>
+  );
+
   const renderSuccess = () => (
     <div className="text-center space-y-6 py-8">
       <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-bounce">
@@ -376,6 +431,9 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
         {step === "processing" &&
           selectedMethod?.id === "bank_qr" &&
           renderQRPayment()}
+        {step === "processing" &&
+          selectedMethod?.id === "payos" &&
+          renderPayOSPayment()}
         {step === "success" && renderSuccess()}
         {step === "failed" && renderFailed()}
       </DialogContent>

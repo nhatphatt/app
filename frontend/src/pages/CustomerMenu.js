@@ -831,16 +831,18 @@ const CustomerMenu = () => {
         </DialogContent>
       </Dialog>
 
-      {/* AI Chatbot Widget */}
-      <div className="theme-customer">
-        <ChatbotWidget
-          storeSlug={storeSlug}
-          customerPhone={customerInfo.customer_phone}
-          tableId={tableId}
-          cart={cart}
-          onAddToCart={addToCart}
-        />
-      </div>
+      {/* AI Chatbot Widget - Only show for PRO plans */}
+      {store?.plan_id === "pro" && (
+        <div className="theme-customer">
+          <ChatbotWidget
+            storeSlug={storeSlug}
+            customerPhone={customerInfo.customer_phone}
+            tableId={tableId}
+            cart={cart}
+            onAddToCart={addToCart}
+          />
+        </div>
+      )}
     </div>
   );
 };

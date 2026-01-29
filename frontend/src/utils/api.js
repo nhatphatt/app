@@ -4,6 +4,12 @@ import { getAuthToken, logout } from './auth';
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
 
+// Get current frontend URL for QR code generation
+export const getFrontendUrl = () => {
+  // Use the current window location, stripping trailing slash
+  return window.location.origin;
+};
+
 const api = axios.create({
   baseURL: API_BASE,
   headers: {
@@ -11,13 +17,15 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and frontend URL header
 api.interceptors.request.use(
   (config) => {
     const token = getAuthToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Add frontend URL header for environment-aware QR code generation
+    config.headers['x-frontend-url'] = getFrontendUrl();
     return config;
   },
   (error) => {

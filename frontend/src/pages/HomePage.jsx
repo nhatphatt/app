@@ -169,10 +169,7 @@ const HomePage = () => {
       >
         <div className="container mx-auto px-4 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer group" onClick={() => navigate("/")}>
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-emerald-200 group-hover:scale-105 transition-transform duration-300">
-              M
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+            <span className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
               Minitake
             </span>
           </div>
@@ -196,7 +193,7 @@ const HomePage = () => {
               onClick={() => navigate("/admin/register")}
               className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200 transition-all hover:scale-105"
             >
-              Dùng thử miễn phí
+              Đăng ký ngay
             </Button>
           </div>
 
@@ -216,8 +213,8 @@ const HomePage = () => {
              <a href="#testimonials" className="text-gray-600 hover:text-emerald-600 py-2" onClick={() => setMobileMenuOpen(false)}>Khách hàng</a>
              <a href="#pricing" className="text-gray-600 hover:text-emerald-600 py-2" onClick={() => setMobileMenuOpen(false)}>Bảng giá</a>
              <div className="h-px bg-gray-100 my-2"></div>
-             <Button variant="ghost" className="justify-start text-gray-600" onClick={() => navigate("/admin/login")}>Đăng nhập</Button>
-             <Button className="bg-emerald-600 text-white" onClick={() => navigate("/admin/register")}>Dùng thử miễn phí</Button>
+              <Button variant="ghost" className="justify-start text-gray-600" onClick={() => navigate("/admin/login")}>Đăng nhập</Button>
+              <Button className="bg-emerald-600 text-white" onClick={() => navigate("/admin/register")}>Đăng ký ngay</Button>
            </div>
         )}
       </nav>
@@ -443,7 +440,6 @@ const HomePage = () => {
           <div className="grid md:grid-cols-4 gap-12">
             <div className="col-span-1 md:col-span-1">
               <div className="flex items-center gap-2 mb-6 text-white">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center font-bold shadow-lg shadow-emerald-900/20">M</div>
                 <span className="text-2xl font-bold">Minitake</span>
               </div>
               <p className="text-base leading-relaxed mb-8 text-gray-500">

@@ -18,6 +18,11 @@ import StoreSettings from "@/pages/admin/StoreSettings";
 import PaymentSettings from "@/pages/admin/PaymentSettings";
 import InventoryManagement from "@/pages/admin/InventoryManagement";
 import StaffManagement from "@/pages/admin/StaffManagement";
+import PricingPage from "@/pages/admin/PricingPage";
+import SubscriptionManagement from "@/pages/admin/SubscriptionManagement";
+import PaymentsManagement from "@/pages/admin/PaymentsManagement";
+import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
+import SuperAdminUsers from "@/pages/admin/SuperAdminUsers";
 import AdminLayout from "@/components/AdminLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 
@@ -57,8 +62,38 @@ function App() {
             <Route path="staff" element={<StaffManagement />} />
             <Route path="promotions" element={<PromotionManagement />} />
             <Route path="payments" element={<PaymentSettings />} />
+            <Route path="payment-history" element={<PaymentsManagement />} />
             <Route path="settings" element={<StoreSettings />} />
+            <Route path="pricing" element={<PricingPage />} />
+            <Route path="subscription" element={<SubscriptionManagement />} />
           </Route>
+
+          {/* Super Admin Routes */}
+          <Route
+            path="/super-admin"
+            element={
+              // Redirect root to dashboard
+              <Navigate to="/super-admin/dashboard" replace />
+            }
+          />
+          <Route
+            path="/super-admin/dashboard"
+            element={
+              localStorage.getItem("minitake_token")
+                ? <SuperAdminDashboard />
+                : <Navigate to="/admin/login" replace />
+            }
+          />
+          <Route
+            path="/super-admin/users"
+            element={
+              localStorage.getItem("minitake_token")
+                ? <SuperAdminUsers />
+                : <Navigate to="/admin/login" replace />
+            }
+          />
+          {/* Legacy route - redirect to dashboard */}
+          <Route path="/super-admin/login" element={<Navigate to="/admin/login" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />

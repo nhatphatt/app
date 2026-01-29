@@ -26,6 +26,11 @@ db_instance = Database()
 # Compatibility: Keep db reference for existing code
 db = None  # Will be set in startup event
 
+# Subscription & Super Admin Routers (imported early for CORS)
+from routers.subscription_router import api_router as subscription_router
+from routers.super_admin_router import api_router as super_admin_router
+from routers.webhook_router import api_router as webhook_router
+
 # JWT Settings (from config)
 SECRET_KEY = settings.JWT_SECRET
 ALGORITHM = settings.JWT_ALGORITHM
@@ -90,6 +95,18 @@ tags_metadata = [
         "name": "Staff Management",
         "description": "Quản lý nhân viên, ca làm việc và chấm công",
     },
+    {
+        "name": "Subscriptions",
+        "description": "Quản lý subscription và thanh toán gói dịch vụ",
+    },
+    {
+        "name": "Super Admin",
+        "description": "Quản lý toàn bộ hệ thống cho Super Admin",
+    },
+    {
+        "name": "Webhooks",
+        "description": "Nhận webhook từ các dịch vụ bên thứ 3 (PayOS)",
+    },
 ]
 
 app = FastAPI(
@@ -122,6 +139,7 @@ class Store(BaseModel):
     logo: Optional[str] = ""
     address: Optional[str] = ""
     phone: Optional[str] = ""
+    plan_id: Optional[str] = "starter"
     created_at: str
 
 class StoreUpdate(BaseModel):
@@ -166,6 +184,18 @@ class UserRegister(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+class UserRegisterWithPlan(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    store_name: str
+    store_slug: str
+    plan_id: str = "starter"
+
+class CheckAvailability(BaseModel):
+    email: Optional[str] = None
+    store_slug: Optional[str] = None
 
 class User(BaseModel):
     id: str
@@ -337,6 +367,10 @@ def verify_webhook_signature(payload: str, signature: str, secret: str) -> bool:
     return hmac.compare_digest(computed_signature, signature)
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    # Use global db - it's initialized in startup event
+    if db is None:
+        raise HTTPException(status_code=503, detail="Server initializing")
+    
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -348,16 +382,19 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
         return user
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.JWTError:
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "signature" in str(e).lower() or "expired" in str(e).lower():
+            raise HTTPException(status_code=401, detail="Token expired")
         raise HTTPException(status_code=401, detail="Invalid token")
 
 # ============ AUTH ROUTES ============
 
 @api_router.post("/auth/register", response_model=TokenResponse, tags=["Authentication"])
 @limiter.limit("3/hour")  # Max 3 registrations per hour per IP
-async def register(request: Request, input: UserRegister):
+async def register(request: Request, input: UserRegister, plan_id: str = "starter"):
+    """Register new user and store with optional subscription plan."""
     # Check if email exists
     existing_user = await db.users.find_one({"email": input.email})
     if existing_user:
@@ -370,6 +407,16 @@ async def register(request: Request, input: UserRegister):
 
     # Create store
     store_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+
+    # Get PRO plan if upgrading
+    plan = None
+    if plan_id == "pro":
+        plan = await db.subscription_plans.find_one({"plan_id": "pro"})
+        if not plan:
+            raise HTTPException(status_code=400, detail="PRO plan not available")
+
+    # Create store with subscription
     store_doc = {
         "id": store_id,
         "name": input.store_name,
@@ -377,9 +424,36 @@ async def register(request: Request, input: UserRegister):
         "logo": "",
         "address": "",
         "phone": "",
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "plan_id": plan_id,
+        "subscription_status": "active" if plan_id == "starter" else "pending_payment",
+        "max_tables": 10 if plan_id == "starter" else None,
+        "is_suspended": False,
+        "created_at": now.isoformat()
     }
     await db.stores.insert_one(store_doc)
+
+    # Create subscription for PRO plan
+    subscription_id = None
+    if plan_id == "pro" and plan:
+        subscription_id = f"sub_{uuid.uuid4().hex[:12]}"
+        await db.subscriptions.insert_one({
+            "subscription_id": subscription_id,
+            "store_id": store_id,
+            "plan_id": "pro",
+            "status": "pending_payment",  # Will be activated after payment
+            "trial_ends_at": None,
+            "current_period_start": now.isoformat(),
+            "current_period_end": (now + timedelta(days=30)).isoformat(),
+            "cancel_at_period_end": False,
+            "max_tables": None,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        })
+        # Update store with subscription_id
+        await db.stores.update_one(
+            {"id": store_id},
+            {"$set": {"subscription_id": subscription_id}}
+        )
 
     # Create user
     user_id = str(uuid.uuid4())
@@ -390,7 +464,7 @@ async def register(request: Request, input: UserRegister):
         "name": input.name,
         "role": "admin",
         "store_id": store_id,
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "created_at": now.isoformat()
     }
     await db.users.insert_one(user_doc)
 
@@ -411,9 +485,216 @@ async def register(request: Request, input: UserRegister):
         user=user_response
     )
 
+
+@api_router.post("/auth/check-availability", tags=["Authentication"])
+async def check_availability(request: Request, data: dict):
+    """Check if email and store slug are available."""
+    email = data.get("email")
+    store_slug = data.get("store_slug")
+
+    errors = []
+
+    if email:
+        existing = await db.users.find_one({"email": email})
+        if existing:
+            errors.append("Email already registered")
+
+    if store_slug:
+        existing = await db.stores.find_one({"slug": store_slug})
+        if existing:
+            errors.append("Store slug already taken")
+
+    if errors:
+        raise HTTPException(status_code=400, detail=errors[0])
+
+    return {"available": True}
+
+
+@api_router.post("/auth/complete-registration", response_model=TokenResponse, tags=["Authentication"])
+async def complete_registration(request: Request, data: dict):
+    """Hoàn tất đăng ký sau khi thanh toán PayOS thành công.
+    
+    Args:
+        data: Contains pending_id or payment_id
+    
+    Returns:
+        Token response with user data
+    """
+    pending_id = data.get("pending_id")
+    payment_id = data.get("payment_id")
+    
+    if not pending_id and not payment_id:
+        raise HTTPException(status_code=400, detail="Missing pending_id or payment_id")
+    
+    # Find pending registration
+    if pending_id:
+        pending_reg = await db.pending_registrations.find_one({"pending_id": pending_id})
+    else:
+        payment = await db.subscription_payments.find_one({"payment_id": payment_id})
+        if payment:
+            pending_reg = await db.pending_registrations.find_one({
+                "payment_id": payment.get("pending_registration_id")
+            })
+        else:
+            pending_reg = None
+    
+    if not pending_reg:
+        raise HTTPException(status_code=404, detail="Pending registration not found")
+    
+    # Check expiry
+    expires_at = pending_reg.get("expires_at")
+    if expires_at:
+        from datetime import datetime, timezone
+        if datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Pending registration has expired")
+    
+    # Check status
+    if pending_reg.get("status") == "completed":
+        raise HTTPException(status_code=400, detail="Registration already completed")
+    
+    if pending_reg.get("status") == "cancelled":
+        raise HTTPException(status_code=400, detail="Registration was cancelled")
+    
+    # Check payment status
+    payment = await db.subscription_payments.find_one({"payment_id": pending_reg.get("payment_id")})
+    if not payment or payment.get("status") != "paid":
+        raise HTTPException(status_code=400, detail="Payment not completed")
+    
+    # Create store
+    store_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    
+    store_doc = {
+        "id": store_id,
+        "name": pending_reg["store_name"],
+        "slug": pending_reg["store_slug"],
+        "logo": "",
+        "address": "",
+        "phone": "",
+        "plan_id": "pro",
+        "subscription_status": "active",
+        "max_tables": None,
+        "is_suspended": False,
+        "created_at": now.isoformat()
+    }
+    await db.stores.insert_one(store_doc)
+    
+    # Create subscription
+    subscription_id = f"sub_{uuid.uuid4().hex[:12]}"
+    await db.subscriptions.insert_one({
+        "subscription_id": subscription_id,
+        "store_id": store_id,
+        "plan_id": "pro",
+        "status": "active",
+        "trial_ends_at": None,
+        "current_period_start": now.isoformat(),
+        "current_period_end": (now + timedelta(days=30)).isoformat(),
+        "cancel_at_period_end": False,
+        "max_tables": None,
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat()
+    })
+    
+    # Update store with subscription_id
+    await db.stores.update_one(
+        {"id": store_id},
+        {"$set": {"subscription_id": subscription_id}}
+    )
+    
+    # Update payment with store_id
+    await db.subscription_payments.update_one(
+        {"payment_id": pending_reg["payment_id"]},
+        {"$set": {"store_id": store_id}}
+    )
+    
+    # Create user
+    user_id = str(uuid.uuid4())
+    user_doc = {
+        "id": user_id,
+        "email": pending_reg["email"],
+        "password_hash": pending_reg["password_hash"],
+        "name": pending_reg["name"],
+        "role": "admin",
+        "store_id": store_id,
+        "created_at": now.isoformat()
+    }
+    await db.users.insert_one(user_doc)
+    
+    # Mark pending registration as completed
+    await db.pending_registrations.update_one(
+        {"pending_id": pending_id},
+        {"$set": {"status": "completed", "completed_at": now.isoformat()}}
+    )
+    
+    # Create token
+    token = create_access_token({"sub": user_id})
+    
+    user_response = User(
+        id=user_id,
+        email=pending_reg["email"],
+        name=pending_reg["name"],
+        role="admin",
+        store_id=store_id
+    )
+    
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        user=user_response
+    )
+
 @api_router.post("/auth/login", response_model=TokenResponse, tags=["Authentication"])
 @limiter.limit("5/minute")  # Max 5 login attempts per minute per IP
 async def login(request: Request, input: UserLogin):
+    """Đăng nhập cho cả User thường và Super Admin.
+    
+    Nếu email là Super Admin, sẽ trả về role="super_admin" để frontend redirect.
+    """
+    # First check if this is a super admin email
+    super_admin = await db.super_admins.find_one({"email": input.email})
+    
+    if super_admin:
+        # Verify super admin password
+        password_hash = super_admin.get("password_hash", "")
+        if not verify_password(input.password, password_hash):
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        # Check if active
+        if not super_admin.get("is_active", True):
+            raise HTTPException(status_code=401, detail="Account is deactivated")
+        
+        # Create super admin token
+        from datetime import timedelta
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        payload = {
+            "sub": super_admin["super_admin_id"],
+            "type": "super_admin",
+            "exp": expire
+        }
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        
+        # Update last login
+        await db.super_admins.update_one(
+            {"super_admin_id": super_admin["super_admin_id"]},
+            {"$set": {"last_login_at": datetime.now(timezone.utc).isoformat()}}
+        )
+        
+        # Return super admin response
+        user_response = User(
+            id=super_admin["super_admin_id"],
+            email=super_admin["email"],
+            name=super_admin["name"],
+            role="super_admin",
+            store_id=""
+        )
+        
+        return TokenResponse(
+            access_token=token,
+            token_type="bearer",
+            user=user_response
+        )
+    
+    # Check regular users
     user = await db.users.find_one({"email": input.email}, {"_id": 0})
     if not user or not verify_password(input.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -1347,16 +1628,52 @@ async def get_alerts(current_user: dict = Depends(get_current_user)):
 
 # ============ TABLES ROUTES ============
 
-@api_router.get("/tables", response_model=List[Table], tags=["Tables"])
-async def get_tables(current_user: dict = Depends(get_current_user)):
+@api_router.get("/tables", tags=["Tables"])
+async def get_tables(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
     tables = await db.tables.find(
         {"store_id": current_user["store_id"]},
         {"_id": 0}
     ).sort("table_number", 1).to_list(1000)
+    
+    # Get store slug for dynamic QR code URL
+    store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0, "slug": 1})
+    store_slug = store.get("slug", "") if store else ""
+    
+    # Get frontend URL from request headers (supports both dev and prod)
+    frontend_url = request.headers.get("x-frontend-url", FRONTEND_URL).rstrip('/')
+    
+    # Update QR code URLs to match current environment
+    for table in tables:
+        table["qr_code_url"] = f"{frontend_url}/menu/{store_slug}?table={table['id']}"
+    
     return tables
 
 @api_router.post("/tables", response_model=Table, tags=["Tables"])
-async def create_table(input: TableCreate, current_user: dict = Depends(get_current_user)):
+async def create_table(
+    request: Request,
+    input: TableCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    # ============ CHECK TABLE LIMIT ============
+    # Get store subscription to check max_tables
+    store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0, "plan_id": 1, "max_tables": 1})
+    if store:
+        max_tables = store.get("max_tables")
+        if max_tables is not None and max_tables > 0:
+            # Count current tables
+            current_count = await db.tables.count_documents({
+                "store_id": current_user["store_id"]
+            })
+            if current_count >= max_tables:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Bạn đã đạt giới hạn {max_tables} bàn. Vui lòng nâng cấp lên gói PRO để thêm bàn không giới hạn."
+                )
+    # ===========================================
+
     # Check if table number already exists
     existing = await db.tables.find_one({
         "store_id": current_user["store_id"],
@@ -1367,12 +1684,14 @@ async def create_table(input: TableCreate, current_user: dict = Depends(get_curr
 
     # Get store slug for QR code URL
     store = await db.stores.find_one({"id": current_user["store_id"]}, {"_id": 0})
+    store_slug = store.get("slug", "") if store else ""
 
     table_id = str(uuid.uuid4())
-    # Generate QR code URL with table parameter
-    # Remove trailing slash from FRONTEND_URL to avoid double slashes
-    frontend_url = FRONTEND_URL.rstrip('/')
-    qr_code_url = f"{frontend_url}/menu/{store['slug']}?table={table_id}"
+    
+    # Generate QR code URL - use dynamic URL from request headers
+    # This allows QR codes to work in both local and production environments
+    frontend_url = request.headers.get("x-frontend-url", FRONTEND_URL).rstrip('/')
+    qr_code_url = f"{frontend_url}/menu/{store_slug}?table={table_id}"
 
     table_doc = {
         "id": table_id,
@@ -1384,7 +1703,8 @@ async def create_table(input: TableCreate, current_user: dict = Depends(get_curr
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.tables.insert_one(table_doc)
-    return Table(**table_doc)
+    
+    return table_doc
 
 @api_router.put("/tables/{table_id}", response_model=Table, tags=["Tables"])
 async def update_table(table_id: str, input: TableUpdate, current_user: dict = Depends(get_current_user)):
@@ -1521,6 +1841,23 @@ async def confirm_cash_payment(
             confirmation.model_dump()
         )
         return result
+    except Exception as e:
+        raise HTTPException(400, str(e))
+
+@api_router.get("/payments", tags=["Payments"])
+async def get_payments(current_user: dict = Depends(get_current_user)):
+    """Get all payments for the current user's store - requires authentication"""
+
+    if current_user["role"] not in ["admin", "staff"]:
+        raise HTTPException(403, "Not authorized")
+
+    try:
+        payments = await db.payments.find(
+            {"store_id": current_user["store_id"]},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(1000)
+
+        return payments
     except Exception as e:
         raise HTTPException(400, str(e))
 
@@ -2255,6 +2592,10 @@ app.add_middleware(
 )
 
 app.include_router(api_router)
+# Register Super Admin router BEFORE startup event so CORS works
+app.include_router(super_admin_router)
+app.include_router(webhook_router)
+app.include_router(subscription_router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -2273,9 +2614,11 @@ async def startup_event():
     app.include_router(shift_router, prefix="/api")
     app.include_router(attendance_router, prefix="/api")
     
-    print("🚀 Minitake F&B System is ready!")
-    print("📦 Inventory Management: Enabled")
-    print("👥 Staff Management: Enabled")
+    print("Minitake F&B System is ready!")
+    print("Inventory Management: Enabled")
+    print("Staff Management: Enabled")
+    print("Subscription System: Enabled")
+    print("Super Admin: Enabled")
 
 @app.on_event("shutdown")
 async def shutdown_event():

@@ -1,13 +1,169 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, CreditCard, QrCode, Wallet, AlertCircle } from 'lucide-react';
+import { Loader2, Save, CreditCard, QrCode, Wallet, AlertCircle, Search, ChevronDown, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/utils/api';
+import { cn } from '@/lib/utils';
+
+// Danh sách ngân hàng Việt Nam
+const VIETNAMESE_BANKS = [
+  { code: '970436', name: 'Vietcombank - Ngân hàng TMCP Ngoại thương Việt Nam' },
+  { code: '970407', name: 'VietinBank - Ngân hàng TMCP Công Thương Việt Nam' },
+  { code: '970418', name: 'BIDV - Ngân hàng TMCP Đầu tư và Phát triển Việt Nam' },
+  { code: '970415', name: 'Agribank - Ngân hàng Nông nghiệp và Phát triển Nông thôn Việt Nam' },
+  { code: '970425', name: 'Sacombank - Ngân hàng TMCP Sài Gòn Thương Tín' },
+  { code: '970429', name: 'Eximbank - Ngân hàng TMCP Xuất Nhập Khẩu Việt Nam' },
+  { code: '970431', name: 'Techcombank - Ngân hàng TMCP Kỹ Thương Việt Nam' },
+  { code: '970444', name: 'MB - Ngân hàng TMCP Quân Đội' },
+  { code: '970422', name: 'ACB - Ngân hàng TMCP Á Châu' },
+  { code: '970427', name: 'VPBank - Ngân hàng TMCP Việt Nam Thịnh Vượng' },
+  { code: '970405', name: 'SHB - Ngân hàng TMCP Sài Gòn - Hà Nội' },
+  { code: '970448', name: 'HDBank - Ngân hàng TMCP Phát Triển Thành Phố Hồ Chí Minh' },
+  { code: '970414', name: 'VIB - Ngân hàng TMCP Quốc Tế Việt Nam' },
+  { code: '970454', name: 'TPBank - Ngân hàng TMCP Tiên Phong' },
+  { code: '970449', name: 'MSB - Ngân hàng TMCP Hàng Hải Việt Nam' },
+  { code: '970426', name: 'DongA Bank - Ngân hàng TMCP Đông Á (đã sáp nhập)' },
+  { code: '970432', name: 'SCB - Ngân hàng TMCP Sài Gòn' },
+  { code: '970419', name: 'OceanBank - Ngân hàng TMCP Đại Dương' },
+  { code: '970446', name: 'Nam A Bank - Ngân hàng TMCP Nam Á' },
+  { code: '970428', name: 'PVCOMBank - Ngân hàng TMCP Đại Chúng Việt Nam' },
+  { code: '970406', name: 'Bac A Bank - Ngân hàng TMCP Bắc Á' },
+  { code: '970439', name: 'Kienlongbank - Ngân hàng TMCP Kiên Long' },
+  { code: '970452', name: 'VietBank - Ngân hàng TMCP Việt Nam Thương Tín' },
+  { code: '970441', name: 'SeABank - Ngân hàng TMCP Đông Nam Á' },
+  { code: '970443', name: 'ABBank - Ngân hàng TMCP An Bình' },
+  { code: '970437', name: 'Hanh Chang Finance - Công ty Tài chính Hanh Chang' },
+  { code: '970438', name: 'Prudential Finance - Công ty Tài chính Prudential' },
+];
+
+// Custom Bank Select Component with Search
+const BankSelect = ({ value, onChange, disabled }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
+  const containerRef = useRef(null);
+
+  const selectedBank = VIETNAMESE_BANKS.find(b => b.code === value);
+
+  const filteredBanks = VIETNAMESE_BANKS.filter(bank =>
+    bank.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    bank.code.includes(searchTerm)
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelect = (bankCode) => {
+    const bank = VIETNAMESE_BANKS.find(b => b.code === bankCode);
+    if (bank) {
+      onChange(bank);
+      setIsOpen(false);
+      setSearchTerm('');
+    }
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange({ code: '', name: '' });
+    setSearchTerm('');
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2 border rounded-md bg-white cursor-text transition-all",
+          isFocused ? "border-emerald-500 ring-2 ring-emerald-100" : "border-gray-200",
+          disabled && "bg-gray-50 cursor-not-allowed opacity-60"
+        )}
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(true);
+            inputRef.current?.focus();
+          }
+        }}
+      >
+        <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+        <input
+          ref={inputRef}
+          type="text"
+          value={isOpen ? searchTerm : (selectedBank?.name || '')}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setIsOpen(true);
+          }}
+          onFocus={() => {
+            setIsFocused(true);
+            setIsOpen(true);
+          }}
+          onBlur={() => setIsFocused(false)}
+          disabled={disabled}
+          placeholder="Tìm kiếm ngân hàng..."
+          className="flex-1 outline-none bg-transparent text-sm min-w-0"
+        />
+        {selectedBank && !isOpen && (
+          <span className="text-sm text-gray-700 truncate">{selectedBank.name}</span>
+        )}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {selectedBank && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 hover:bg-gray-100 rounded"
+              disabled={disabled}
+            >
+              <X className="w-3 h-3 text-gray-400" />
+            </button>
+          )}
+          <ChevronDown className={cn(
+            "w-4 h-4 text-gray-400 transition-transform",
+            isOpen && "rotate-180"
+          )} />
+        </div>
+      </div>
+
+      {isOpen && !disabled && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-[300px] overflow-y-auto">
+          {filteredBanks.length === 0 ? (
+            <div className="px-3 py-4 text-sm text-gray-500 text-center">
+              Không tìm thấy ngân hàng
+            </div>
+          ) : (
+            filteredBanks.map((bank) => (
+              <button
+                key={bank.code}
+                type="button"
+                onClick={() => handleSelect(bank.code)}
+                className={cn(
+                  "w-full px-3 py-2 text-left text-sm hover:bg-emerald-50 transition-colors",
+                  value === bank.code && "bg-emerald-50 text-emerald-700"
+                )}
+              >
+                <span className="font-medium">{bank.name}</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const PaymentSettings = () => {
   const [loading, setLoading] = useState(true);
@@ -42,6 +198,17 @@ const PaymentSettings = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBankChange = (bank) => {
+    setBankQRMethod({
+      ...bankQRMethod,
+      config: { 
+        ...bankQRMethod.config, 
+        bank_name: bank.name,
+        bank_bin: bank.code
+      }
+    });
   };
 
   const handleSaveBankQR = async () => {
@@ -205,34 +372,26 @@ const PaymentSettings = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2 md:col-span-1">
                   <Label htmlFor="bank-name">Tên ngân hàng *</Label>
-                  <Input
-                    id="bank-name"
-                    value={bankQRMethod?.config.bank_name || ''}
-                    onChange={(e) => setBankQRMethod({
-                      ...bankQRMethod,
-                      config: { ...bankQRMethod.config, bank_name: e.target.value }
-                    })}
-                    placeholder="VD: Vietcombank, Techcombank..."
+                  <BankSelect
+                    value={bankQRMethod?.config.bank_bin || ''}
+                    onChange={handleBankChange}
+                    disabled={saving}
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="bank-bin">Mã ngân hàng (BIN) *</Label>
+                <div className="space-y-2 col-span-2 md:col-span-1">
+                  <Label htmlFor="bank-bin">Mã ngân hàng (BIN)</Label>
                   <Input
                     id="bank-bin"
                     value={bankQRMethod?.config.bank_bin || ''}
-                    onChange={(e) => setBankQRMethod({
-                      ...bankQRMethod,
-                      config: { ...bankQRMethod.config, bank_bin: e.target.value }
-                    })}
-                    placeholder="VD: 970436 (Vietcombank)"
+                    readOnly
+                    className="bg-gray-100 cursor-not-allowed font-mono"
+                    placeholder="Mã BIN sẽ tự động điền"
                   />
                   <p className="text-xs text-gray-500">
-                    <a href="https://api.vietqr.io/v2/banks" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                      Xem danh sách mã BIN
-                    </a>
+                    Mã BIN được tự động điền khi chọn ngân hàng
                   </p>
                 </div>
 

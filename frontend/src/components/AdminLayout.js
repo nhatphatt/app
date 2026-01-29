@@ -15,6 +15,8 @@ import {
   Store,
   Bell,
   Search,
+  Crown,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { logout, getAuthUser } from "@/utils/auth";
@@ -57,7 +59,9 @@ const AdminLayout = () => {
     { path: "/admin/inventory", icon: Package, label: "Kho hàng" },
     { path: "/admin/staff", icon: Users, label: "Nhân viên" },
     { path: "/admin/promotions", icon: Tag, label: "Khuyến mãi" },
-    { path: "/admin/payments", icon: CreditCard, label: "Thanh toán" },
+    { path: "/admin/payments", icon: CreditCard, label: "Cài đặt TT" },
+    { path: "/admin/payment-history", icon: History, label: "Lịch sử TT" },
+    { path: "/admin/subscription", icon: Crown, label: "Subscription" },
     { path: "/admin/settings", icon: Settings, label: "Cài đặt" },
   ];
 

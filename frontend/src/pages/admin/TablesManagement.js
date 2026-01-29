@@ -11,7 +11,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Loader2, QrCode, Download } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Plus, Edit, Trash2, Loader2, QrCode, Download, Crown, Info } from "lucide-react";
 import api from "@/utils/api";
 import { toast } from "sonner";
 
@@ -22,6 +23,7 @@ const TablesManagement = () => {
   const [editingTable, setEditingTable] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
+  const [subscription, setSubscription] = useState(null);
 
   const [tableForm, setTableForm] = useState({
     table_number: "",
@@ -30,7 +32,17 @@ const TablesManagement = () => {
 
   useEffect(() => {
     fetchTables();
+    fetchSubscription();
   }, []);
+
+  const fetchSubscription = async () => {
+    try {
+      const response = await api.get("/subscriptions/current");
+      setSubscription(response.data);
+    } catch (error) {
+      console.error("Failed to fetch subscription:", error);
+    }
+  };
 
   const fetchTables = async () => {
     try {

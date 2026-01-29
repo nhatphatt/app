@@ -35,6 +35,31 @@ class Settings:
     # Gemini AI Configuration
     GEMINI_API_KEY: str = os.environ.get('GEMINI_API_KEY', '')
     
+    # PayOS Configuration (Required for Pro subscription payments)
+    PAYOS_CLIENT_ID: str = os.environ.get('PAYOS_CLIENT_ID', '')
+    PAYOS_API_KEY: str = os.environ.get('PAYOS_API_KEY', '')
+    PAYOS_CHECKSUM_KEY: str = os.environ.get('PAYOS_CHECKSUM_KEY', '')
+    
+    # Resend Email Configuration (Required for notifications)
+    RESEND_API_KEY: str = os.environ.get('RESEND_API_KEY', '')
+    RESEND_FROM_EMAIL: str = os.environ.get('RESEND_FROM_EMAIL', 'Minitake <noreply@minitake.vn>')
+    
+    # Subscription Settings
+    PRO_PLAN_PRICE: int = int(os.environ.get('PRO_PLAN_PRICE', 199000))
+    PRO_PLAN_PRICE_VAT: int = int(os.environ.get('PRO_PLAN_PRICE_VAT', int(199000 * 1.1)))
+    STARTER_MAX_TABLES: int = int(os.environ.get('STARTER_MAX_TABLES', 10))
+    TRIAL_DAYS: int = int(os.environ.get('TRIAL_DAYS', 14))
+    SUBSCRIPTION_RETURN_URL: str = os.environ.get('SUBSCRIPTION_RETURN_URL', 'http://localhost:3000/admin/dashboard')
+    SUBSCRIPTION_CANCEL_URL: str = os.environ.get('SUBSCRIPTION_CANCEL_URL', 'http://localhost:3000/admin/subscription')
+
+    # PayOS Order Payment Settings
+    PAYOS_RETURN_URL: str = os.environ.get('PAYOS_RETURN_URL', '')
+    PAYOS_CANCEL_URL: str = os.environ.get('PAYOS_CANCEL_URL', '')
+
+    # Development Mode Settings
+    MOCK_PAYOS_ENABLED: bool = os.environ.get('MOCK_PAYOS_ENABLED', 'false').lower() == 'true'
+    MOCK_CHECKOUT_URL: str = os.environ.get('MOCK_CHECKOUT_URL', 'http://localhost:3000/admin/subscription?payment=mock')
+    
     # Security Configuration
     WEBHOOK_SECRET: str = os.environ.get('WEBHOOK_SECRET', '')
     

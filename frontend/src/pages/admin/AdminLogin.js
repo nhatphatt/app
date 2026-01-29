@@ -39,7 +39,14 @@ const AdminLogin = () => {
       setAuthToken(response.data.access_token);
       setAuthUser(response.data.user);
       toast.success("Đăng nhập thành công!");
-      navigate("/admin/dashboard");
+      
+      // Redirect based on user role
+      const userRole = response.data.user?.role;
+      if (userRole === "super_admin") {
+        navigate("/super-admin/dashboard");
+      } else {
+        navigate("/admin/dashboard");
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || "Đăng nhập thất bại");
     } finally {

@@ -7,6 +7,9 @@ import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Optional
 
+from services.payos_service import payos_service
+from config.settings import settings
+
 
 class PaymentService:
     """Service for handling payment operations."""
@@ -78,6 +81,10 @@ class PaymentService:
 
         elif payment_method == "bank_qr":
             response = await self._handle_bank_qr_payment(payment_doc, order)
+
+        elif payment_method == "payos":
+            response = await self._handle_payos_payment(payment_doc, order, customer_info)
+
         else:
             raise Exception(f"Payment method {payment_method} not supported")
 
@@ -171,6 +178,56 @@ class PaymentService:
                 "content": payment_content
             },
             "message": "Quét mã QR bằng ứng dụng ngân hàng để thanh toán"
+        }
+
+    async def _handle_payos_payment(self, payment_doc: Dict, order: Dict, customer_info: Dict = {}) -> Dict:
+        """Handle PayOS payment - create payment link and redirect"""
+
+        # Get store for buyer info
+        store = await self.db.stores.find_one({"id": self.store_id})
+
+        # Generate order code for PayOS
+        order_code = payos_service._generate_order_code(f"order_{order['id'][:8]}")
+
+        # Create PayOS payment link
+        result = await payos_service.create_payment_link(
+            order_code=order_code,
+            amount=int(payment_doc["amount"]),
+            description=f"Thanh toán đơn hàng #{order['id'][:8].upper()}",
+            buyer_name=order.get("customer_name", ""),
+            buyer_email="",  # Customer might not provide email
+            buyer_phone=order.get("customer_phone", ""),
+            return_url=settings.PAYOS_RETURN_URL or f"{settings.FRONTEND_URL}/menu/{store.get('slug', '')}?table={order.get('table_id', '')}&payment=success",
+            cancel_url=settings.PAYOS_CANCEL_URL or f"{settings.FRONTEND_URL}/menu/{store.get('slug', '')}?table={order.get('table_id', '')}&payment=cancelled",
+            items=[{
+                "name": f"Đơn hàng #{order['id'][:8].upper()}",
+                "quantity": 1,
+                "price": int(payment_doc["amount"])
+            }]
+        )
+
+        if not result.get("success"):
+            raise Exception(result.get("error", "Failed to create PayOS payment link"))
+
+        # Update payment doc
+        payment_doc.update({
+            "payos_order_id": order_code,
+            "payos_payment_link_id": result.get("payment_link_id"),
+            "gateway_response": {
+                "order_code": order_code,
+                "checkout_url": result.get("checkout_url")
+            }
+        })
+
+        return {
+            "payment_id": payment_doc["id"],
+            "order_id": payment_doc["order_id"],
+            "status": "pending",
+            "amount": payment_doc["amount"],
+            "payment_method": "payos",
+            "checkout_url": result.get("checkout_url"),
+            "expires_at": payment_doc["expires_at"],
+            "message": "Chuyển đến cổng thanh toán PayOS"
         }
 
     async def confirm_cash_payment(
@@ -342,3 +399,93 @@ class PaymentService:
                     "updated_at": datetime.now(timezone.utc).isoformat()
                 }}
             )
+
+    async def process_payos_webhook(self, webhook_data: Dict) -> Dict:
+        """Process PayOS webhook for order payments"""
+        # PayOS webhook format:
+        # {
+        #   "code": "00",
+        #   "data": {
+        #     "id": 123456,
+        #     "orderCode": "order_ABC12345",
+        #     "status": "PAID",
+        #     "amount": 100000,
+        #     ...
+        #   },
+        #   "signature": "..."
+        # }
+
+        if webhook_data.get("code") != "00":
+            return {"status": "ignored", "reason": f"PayOS error: {webhook_data.get('message')}"}
+
+        data = webhook_data.get("data", {})
+        order_code = data.get("orderCode")
+        status = data.get("status")
+
+        if not order_code:
+            return {"status": "ignored", "reason": "No orderCode in webhook"}
+
+        # Find payment by payos_order_id
+        payment = await self.db.payments.find_one({
+            "payos_order_id": order_code,
+            "payment_method": "payos",
+            "status": "pending"
+        })
+
+        if not payment:
+            return {"status": "ignored", "reason": "No matching pending PayOS payment found"}
+
+        # Verify amount
+        amount = data.get("amount", 0)
+        if int(amount) != int(payment["amount"]):
+            return {
+                "status": "failed",
+                "reason": f"Amount mismatch. Expected {payment['amount']}, got {amount}"
+            }
+
+        # Handle payment status
+        if status == "PAID":
+            # Mark payment as paid
+            await self.db.payments.update_one(
+                {"id": payment["id"]},
+                {"$set": {
+                    "status": "paid",
+                    "paid_at": datetime.now(timezone.utc).isoformat(),
+                    "webhook_received": True,
+                    "webhook_verified": True,
+                    "payos_status": status,
+                    "payos_transaction_id": data.get("transactionId"),
+                    "gateway_response": webhook_data,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+
+            # Complete payment and update order
+            await self._complete_payment(payment["id"], payment["order_id"])
+
+            return {
+                "status": "success",
+                "payment_id": payment["id"],
+                "order_id": payment["order_id"]
+            }
+
+        elif status in ["CANCELLED", "EXPIRED"]:
+            # Mark payment as cancelled/expired
+            await self.db.payments.update_one(
+                {"id": payment["id"]},
+                {"$set": {
+                    "status": status.lower(),
+                    "webhook_received": True,
+                    "payos_status": status,
+                    "gateway_response": webhook_data,
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+
+            return {
+                "status": status.lower(),
+                "payment_id": payment["id"],
+                "order_id": payment["order_id"]
+            }
+
+        return {"status": "pending", "payment_id": payment["id"]}
