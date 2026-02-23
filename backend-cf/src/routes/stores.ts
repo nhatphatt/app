@@ -286,6 +286,7 @@ app.get('/payment-methods', authMiddleware, async (c) => {
 		...m,
 		config: m.config ? JSON.parse(m.config) : {},
 		is_active: !!m.is_active,
+		is_enabled: !!m.is_active,
 	}));
 	return c.json(methods);
 });
@@ -326,6 +327,7 @@ app.put('/payment-methods/:id', authMiddleware, async (c) => {
 		...updated,
 		config: updated?.config ? JSON.parse(updated.config) : {},
 		is_active: !!updated?.is_active,
+		is_enabled: !!updated?.is_active,
 	});
 });
 
