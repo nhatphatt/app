@@ -249,10 +249,20 @@ app.put('/orders/:id/status', authMiddleware, async (c) => {
 // GET /tables
 app.get('/tables', authMiddleware, async (c) => {
 	const user = c.get('user');
+	const store = await c.env.DB.prepare('SELECT slug FROM stores WHERE id = ?').bind(user.store_id).first();
+	const frontendUrl = c.req.header('x-frontend-url') || c.env.FRONTEND_URL;
+
 	const tables = await c.env.DB.prepare(
 		'SELECT * FROM tables WHERE store_id = ? ORDER BY table_number ASC'
 	).bind(user.store_id).all();
-	return c.json(tables.results || []);
+
+	// Ensure qr_code_url is set for all tables
+	const results = (tables.results || []).map((t: any) => ({
+		...t,
+		qr_code_url: t.qr_code_url || `${frontendUrl}/menu/${store?.slug || ''}?table=${t.id}`,
+	}));
+
+	return c.json(results);
 });
 
 // POST /tables
@@ -287,6 +297,11 @@ app.post('/tables', authMiddleware, async (c) => {
 	const tableId = generateId();
 	const now = new Date().toISOString();
 
+	// Generate QR code URL using store slug
+	const frontendUrl = c.req.header('x-frontend-url') || c.env.FRONTEND_URL;
+	const storeSlug = store?.slug || '';
+	const generatedQrUrl = qr_code_url || `${frontendUrl}/menu/${storeSlug}?table=${tableId}`;
+
 	await c.env.DB.prepare(
 		`INSERT INTO tables (id, store_id, table_number, capacity, qr_code_url, status, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`
@@ -295,7 +310,7 @@ app.post('/tables', authMiddleware, async (c) => {
 		user.store_id,
 		table_number,
 		capacity || 4,
-		qr_code_url || '',
+		generatedQrUrl,
 		'available',
 		now
 	).run();
