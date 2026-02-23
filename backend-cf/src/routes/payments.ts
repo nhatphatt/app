@@ -44,7 +44,7 @@ app.post('/initiate', async (c) => {
 			};
 		} else if (payment_method === 'bank_qr') {
 			const pm = await c.env.DB.prepare(
-				"SELECT * FROM payment_methods WHERE store_id = ? AND type = 'bank_qr' AND is_active = 1"
+				"SELECT * FROM payment_methods WHERE store_id = ? AND method_type = 'bank_qr' AND is_active = 1"
 			).bind(order.store_id).first();
 
 			if (!pm) return c.json({ detail: 'Bank QR payment method not configured or disabled' }, 400);

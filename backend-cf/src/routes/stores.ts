@@ -302,9 +302,22 @@ app.put('/payment-methods/:id', authMiddleware, async (c) => {
 
 	const updates: string[] = [];
 	const values: any[] = [];
+
+	// Handle is_active / is_enabled
 	if (body.is_active !== undefined) { updates.push('is_active = ?'); values.push(body.is_active ? 1 : 0); }
-	if (body.config !== undefined) { updates.push('config = ?'); values.push(JSON.stringify(body.config)); }
-	if (updates.length === 0) return c.json(existing);
+	if (body.is_enabled !== undefined) { updates.push('is_active = ?'); values.push(body.is_enabled ? 1 : 0); }
+	if (body.name !== undefined) { updates.push('name = ?'); values.push(body.name); }
+
+	// Build config from individual fields or from config object
+	const existingConfig = existing.config ? JSON.parse(existing.config as string) : {};
+	let configChanged = false;
+	for (const key of ['bank_name', 'bank_bin', 'account_number', 'account_name', 'phone']) {
+		if (body[key] !== undefined) { existingConfig[key] = body[key]; configChanged = true; }
+	}
+	if (body.config !== undefined) { Object.assign(existingConfig, body.config); configChanged = true; }
+	if (configChanged) { updates.push('config = ?'); values.push(JSON.stringify(existingConfig)); }
+
+	if (updates.length === 0) return c.json({ ...existing, config: existingConfig, is_active: !!existing.is_active });
 
 	values.push(id);
 	await c.env.DB.prepare(`UPDATE payment_methods SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
