@@ -379,6 +379,14 @@ app.post('/auth/check-availability', async (c) => {
 	}
 });
 
+// Alias for frontend compatibility
+app.post('/auth/complete-registration', async (c) => {
+	const url = new URL(c.req.url);
+	url.pathname = url.pathname.replace('/complete-registration', '/register/complete');
+	const newReq = new Request(url.toString(), c.req.raw);
+	return app.fetch(newReq, c.env, c.executionCtx);
+});
+
 // GET /auth/me
 app.get('/auth/me', authMiddleware, async (c) => {
 	const user = c.get('user');

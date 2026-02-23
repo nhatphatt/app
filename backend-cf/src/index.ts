@@ -46,5 +46,13 @@ app.route('/api/super-admin', superadminRoutes);
 app.route('/api/webhooks', webhooksRoutes);
 // Chatbot: /api/chatbot/*
 app.route('/api/chatbot', chatbotRoutes);
+// Payment methods alias: frontend calls /api/payment-methods/* instead of /api/payments/methods/*
+app.all('/api/payment-methods/:id?', async (c) => {
+	const id = c.req.param('id');
+	const url = new URL(c.req.url);
+	url.pathname = id ? `/api/payments/methods/${id}` : '/api/payments/methods';
+	const newReq = new Request(url.toString(), c.req.raw);
+	return app.fetch(newReq, c.env, c.executionCtx);
+});
 
 export default app;
