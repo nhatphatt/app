@@ -209,12 +209,12 @@ app.post('/menu-items/bulk-import', authMiddleware, async (c) => {
 			}
 			const itemId = generateId();
 			await c.env.DB.prepare(
-				`INSERT INTO menu_items (id, name, description, price, category_id, store_id, image_url, is_available, display_order, created_at)
-				 VALUES (?,?,?,?,?,?,?,?,?,?)`
+				`INSERT INTO menu_items (id, name, description, price, category_id, store_id, image_url, is_available, created_at)
+				 VALUES (?,?,?,?,?,?,?,?,?)`
 			).bind(
 				itemId, item.name, item.description || '', item.price || 0,
 				categoryId, user.store_id, item.image_url || '',
-				item.is_available !== false ? 1 : 0, item.display_order || 0, now
+				item.is_available !== false ? 1 : 0, now
 			).run();
 			items_success++;
 		} catch (e: any) {
