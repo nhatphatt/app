@@ -1,6 +1,6 @@
 // craco.config.js
 const path = require("path");
-require("dotenv").config();
+// dotenv is handled by CRA automatically (.env, .env.production, etc.)
 
 // Environment variable overrides
 const config = {

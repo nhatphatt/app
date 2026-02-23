@@ -19,7 +19,7 @@ export function corsMiddleware() {
 			return '';
 		},
 		allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-		allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+		allowHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-frontend-url'],
 		credentials: true,
 		maxAge: 86400,
 	});
