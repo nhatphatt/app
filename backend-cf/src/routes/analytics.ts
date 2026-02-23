@@ -191,7 +191,7 @@ app.get('/payment-methods', authMiddleware, async (c) => {
 	const user = c.get('user');
 
 	const { results: payments } = await c.env.DB.prepare(
-		"SELECT method, COUNT(*) as count, SUM(amount) as total FROM payments WHERE store_id = ? AND status = 'paid' GROUP BY method"
+		"SELECT payment_method as method, COUNT(*) as count, SUM(amount) as total FROM payments WHERE store_id = ? AND status = 'paid' GROUP BY payment_method"
 	).bind(user.store_id).all();
 
 	return c.json(payments || []);
