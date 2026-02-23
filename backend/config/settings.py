@@ -77,11 +77,17 @@ class Settings:
             "http://localhost:3001",
         ]
         
-        # Add FRONTEND_URL if not already in list
-        if cls.FRONTEND_URL and cls.FRONTEND_URL not in origins:
-            origins.append(cls.FRONTEND_URL)
+        # Add FRONTEND_URL if not already in list (strip trailing slash)
+        frontend = cls.FRONTEND_URL.rstrip("/") if cls.FRONTEND_URL else ""
+        if frontend and frontend not in origins:
+            origins.append(frontend)
         
         return origins
+
+    @classmethod
+    def get_cors_origin_regex(cls) -> str:
+        """Regex pattern to also allow Cloudflare Pages preview deployments."""
+        return r"https://.*\.minitake\.pages\.dev"
     
     @classmethod
     def validate(cls) -> None:

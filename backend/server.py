@@ -2587,8 +2587,10 @@ app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
     allow_origins=settings.get_cors_origins(),
+    allow_origin_regex=settings.get_cors_origin_regex(),
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(api_router)
