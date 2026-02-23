@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '../types';
 import { authMiddleware, createToken, verifyToken } from '../middleware/auth';
 import { generateId } from '../utils/crypto';
+import { createPaymentLink } from '../services/payos';
 
 const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 
@@ -169,14 +170,33 @@ app.post('/create-checkout-for-registration', async (c) => {
 			'INSERT INTO subscription_payments (payment_id, pending_registration_id, store_id, amount, status, payos_order_id, payment_method, created_at) VALUES (?,?,?,?,?,?,?,?)'
 		).bind(paymentId, pendingId, null, priceVat, 'pending', orderCode, 'payos', now).run();
 
-		// In production, call PayOS API here. For now return the order info.
-		const checkoutUrl = c.env.FRONTEND_URL + '/admin/register?payment=success&pending_id=' + pendingId;
+		const orderCodeNum = Date.now() % 2147483647;
+		const payosResult = await createPaymentLink(
+			{ clientId: c.env.PAYOS_CLIENT_ID, apiKey: c.env.PAYOS_API_KEY, checksumKey: c.env.PAYOS_CHECKSUM_KEY },
+			{
+				orderCode: orderCodeNum,
+				amount: priceVat,
+				description: 'Dang ky PRO ' + store_slug,
+				buyerName: buyer_name,
+				buyerEmail: buyer_email,
+				returnUrl: c.env.FRONTEND_URL + '/admin/register?payment=success&pending_id=' + pendingId,
+				cancelUrl: c.env.FRONTEND_URL + '/admin/register?payment=cancelled',
+			}
+		);
+
+		if (!payosResult.success) {
+			return c.json({ detail: 'PayOS error: ' + payosResult.error }, 500);
+		}
+
+		// Update payment record with PayOS order code
+		await c.env.DB.prepare('UPDATE subscription_payments SET payos_order_id = ? WHERE payment_id = ?')
+			.bind(String(orderCodeNum), paymentId).run();
 
 		return c.json({
 			success: true,
 			pending_id: pendingId,
 			payment_id: paymentId,
-			checkout_url: checkoutUrl,
+			checkout_url: payosResult.checkout_url,
 		});
 	} catch (e: any) {
 		if (e instanceof Response) throw e;
@@ -212,19 +232,34 @@ app.post('/create-checkout', authMiddleware, async (c) => {
 		}
 
 		const paymentId = 'pay_' + generateId().replace(/-/g, '').slice(0, 12);
-		const orderCode = 'upgrade_starter_pro_' + Date.now();
+		const orderCodeNum = Date.now() % 2147483647;
 		const priceVat = (plan.price as number) || 218900;
 
 		await c.env.DB.prepare(
 			'INSERT INTO subscription_payments (payment_id, subscription_id, store_id, amount, status, payos_order_id, payment_method, created_at) VALUES (?,?,?,?,?,?,?,?)'
-		).bind(paymentId, subscriptionId, storeId, priceVat, 'pending', orderCode, 'payos', now).run();
+		).bind(paymentId, subscriptionId, storeId, priceVat, 'pending', String(orderCodeNum), 'payos', now).run();
 
-		const checkoutUrl = c.env.FRONTEND_URL + '/subscription/checkout?order=' + orderCode;
+		const payosResult = await createPaymentLink(
+			{ clientId: c.env.PAYOS_CLIENT_ID, apiKey: c.env.PAYOS_API_KEY, checksumKey: c.env.PAYOS_CHECKSUM_KEY },
+			{
+				orderCode: orderCodeNum,
+				amount: priceVat,
+				description: 'Nang cap PRO 1 thang',
+				buyerName: user.name || user.email,
+				buyerEmail: user.email,
+				returnUrl: c.env.FRONTEND_URL + '/admin/dashboard?payment=success',
+				cancelUrl: c.env.FRONTEND_URL + '/admin/subscription?payment=cancelled',
+			}
+		);
+
+		if (!payosResult.success) {
+			return c.json({ detail: 'PayOS error: ' + payosResult.error }, 500);
+		}
 
 		return c.json({
 			success: true,
 			payment_id: paymentId,
-			checkout_url: checkoutUrl,
+			checkout_url: payosResult.checkout_url,
 			amount: priceVat,
 			description: 'Nâng cấp lên gói PRO - 1 tháng',
 		});
