@@ -163,6 +163,69 @@ app.delete('/menu-items/:id', authMiddleware, async (c) => {
 	return c.json({ message: 'Menu item deleted' });
 });
 
+// DELETE /menu-items (delete all)
+app.delete('/menu-items', authMiddleware, async (c) => {
+	const user = c.get('user');
+	const result = await c.env.DB.prepare('DELETE FROM menu_items WHERE store_id = ?').bind(user.store_id).run();
+	return c.json({ message: `Deleted ${result.meta.changes} menu items`, deleted_count: result.meta.changes });
+});
+
+// POST /menu-items/bulk-import
+app.post('/menu-items/bulk-import', authMiddleware, async (c) => {
+	const user = c.get('user');
+	const body = await c.req.json();
+	const { categories = [], items = [] } = body;
+	const now = new Date().toISOString();
+	let categories_created = 0;
+	let items_success = 0;
+	let items_failed = 0;
+	const errors: string[] = [];
+
+	// Step 1: Create categories
+	for (const cat of categories) {
+		try {
+			const existing = await c.env.DB.prepare(
+				'SELECT id FROM categories WHERE store_id = ? AND LOWER(name) = LOWER(?)'
+			).bind(user.store_id, cat.name).first();
+			if (!existing) {
+				const catId = generateId();
+				await c.env.DB.prepare(
+					'INSERT INTO categories (id, name, store_id, display_order, created_at) VALUES (?,?,?,?,?)'
+				).bind(catId, cat.name, user.store_id, cat.display_order || 0, now).run();
+				categories_created++;
+			}
+		} catch (e: any) { errors.push(`Category '${cat.name}': ${e.message}`); }
+	}
+
+	// Step 2: Import items
+	for (const item of items) {
+		try {
+			let categoryId = '';
+			if (item.category_name) {
+				const cat = await c.env.DB.prepare(
+					'SELECT id FROM categories WHERE store_id = ? AND LOWER(name) = LOWER(?)'
+				).bind(user.store_id, item.category_name).first();
+				categoryId = (cat?.id as string) || '';
+			}
+			const itemId = generateId();
+			await c.env.DB.prepare(
+				`INSERT INTO menu_items (id, name, description, price, category_id, store_id, image_url, is_available, display_order, created_at)
+				 VALUES (?,?,?,?,?,?,?,?,?,?)`
+			).bind(
+				itemId, item.name, item.description || '', item.price || 0,
+				categoryId, user.store_id, item.image_url || '',
+				item.is_available !== false ? 1 : 0, item.display_order || 0, now
+			).run();
+			items_success++;
+		} catch (e: any) {
+			items_failed++;
+			errors.push(`Item '${item.name}': ${e.message}`);
+		}
+	}
+
+	return c.json({ categories_created, items_success, items_failed, errors });
+});
+
 function applyPromotions(items: any[], promotions: any[]): any[] {
 	if (!promotions.length) return items;
 
