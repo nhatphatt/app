@@ -1,0 +1,13 @@
+name = "minitake-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+FRONTEND_URL = "https://minitake-e1u.pages.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "minitake"
+database_id = "26444b6c-a0c0-48f4-962f-b0634934c077"
