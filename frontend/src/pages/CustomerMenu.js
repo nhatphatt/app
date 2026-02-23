@@ -781,6 +781,7 @@ const CustomerMenu = () => {
         <div className="theme-customer">
           <PaymentFlow
             order={currentOrder}
+            storeSlug={storeSlug}
             onSuccess={handlePaymentSuccess}
             onCancel={handlePaymentCancel}
             open={paymentOpen}

@@ -22,7 +22,7 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API_BASE = `${BACKEND_URL}/api`;
 
-const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
+const PaymentFlow = ({ order, storeSlug, onSuccess, onCancel, open }) => {
   const [step, setStep] = useState("select"); // select, processing, success, failed
   const [selectedMethod, setSelectedMethod] = useState(null);
   const [paymentData, setPaymentData] = useState(null);
@@ -30,29 +30,27 @@ const PaymentFlow = ({ order, onSuccess, onCancel, open }) => {
   const [timeLeft, setTimeLeft] = useState(null);
   const pollIntervalRef = React.useRef(null); // Store interval reference
 
-  const paymentMethods = [
-    {
-      id: "cash",
-      name: "Tiền mặt",
-      icon: <Wallet className="h-6 w-6" />,
-      description: "Thanh toán tại quầy",
-      color: "bg-primary/10 text-primary",
-    },
-    {
-      id: "bank_qr",
-      name: "Chuyển khoản QR",
-      icon: <QrCode className="h-6 w-6" />,
-      description: "Quét mã QR ngân hàng",
-      color: "bg-blue-100 text-blue-700",
-    },
-    {
-      id: "payos",
-      name: "PayOS",
-      icon: <CreditCard className="h-6 w-6" />,
-      description: "Thanh toán qua ví điện tử (MoMo, ZaloPay, VNPay)",
-      color: "bg-violet-100 text-violet-700",
-    },
+  const ALL_METHODS = [
+    { id: 'cash', name: 'Tiền mặt', icon: <Wallet className="h-6 w-6" />, description: 'Thanh toán tại quầy', color: 'bg-primary/10 text-primary' },
+    { id: 'bank_qr', name: 'Chuyển khoản QR', icon: <QrCode className="h-6 w-6" />, description: 'Quét mã QR ngân hàng', color: 'bg-blue-100 text-blue-700' },
+    { id: 'payos', name: 'PayOS', icon: <CreditCard className="h-6 w-6" />, description: 'Thanh toán qua ví điện tử', color: 'bg-violet-100 text-violet-700' },
+    { id: 'momo', name: 'MoMo', icon: <Wallet className="h-6 w-6" />, description: 'Ví MoMo', color: 'bg-pink-100 text-pink-700' },
   ];
+
+  const [paymentMethods, setPaymentMethods] = useState(ALL_METHODS);
+
+  useEffect(() => {
+    if (storeSlug && open) {
+      axios.get(`${API_BASE}/public/${storeSlug}/payment-methods`)
+        .then(res => {
+          const enabledIds = res.data.map(m => m.method_type);
+          // Always show cash as fallback
+          if (!enabledIds.includes('cash')) enabledIds.push('cash');
+          setPaymentMethods(ALL_METHODS.filter(m => enabledIds.includes(m.id)));
+        })
+        .catch(() => setPaymentMethods(ALL_METHODS));
+    }
+  }, [storeSlug, open]);
 
   // Countdown timer for QR expiry
   useEffect(() => {

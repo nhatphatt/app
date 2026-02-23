@@ -170,6 +170,17 @@ app.post('/public/:store_slug/orders', async (c) => {
 });
 
 // GET /public/orders/:order_id
+// GET /public/:store_slug/payment-methods
+app.get('/public/:store_slug/payment-methods', async (c) => {
+	const storeSlug = c.req.param('store_slug');
+	const store = await c.env.DB.prepare('SELECT id FROM stores WHERE slug = ?').bind(storeSlug).first();
+	if (!store) return c.json({ detail: 'Store not found' }, 404);
+	const { results } = await c.env.DB.prepare(
+		'SELECT id, method_type, name FROM payment_methods WHERE store_id = ? AND is_active = 1'
+	).bind(store.id).all();
+	return c.json(results || []);
+});
+
 app.get('/public/orders/:order_id', async (c) => {
 	const orderId = c.req.param('order_id');
 	const order = await c.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
