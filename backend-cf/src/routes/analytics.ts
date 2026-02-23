@@ -163,10 +163,15 @@ app.get('/top-items', authMiddleware, async (c) => {
 
 	const sorted = Object.entries(itemStats)
 		.sort((a, b) => b[1].quantity - a[1].quantity)
+		.map(([id, stats]) => ({ menu_item_id: id, ...stats }));
+
+	const topSelling = sorted.slice(0, limit);
+	const leastSelling = Object.entries(itemStats)
+		.sort((a, b) => a[1].quantity - b[1].quantity)
 		.slice(0, limit)
 		.map(([id, stats]) => ({ menu_item_id: id, ...stats }));
 
-	return c.json(sorted);
+	return c.json({ top_selling: topSelling, least_selling: leastSelling });
 });
 
 // GET /analytics/recent-orders
