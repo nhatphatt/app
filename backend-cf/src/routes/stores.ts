@@ -234,20 +234,21 @@ function applyPromotions(items: any[], promotions: any[]): any[] {
 		let bestPromotion: any = null;
 
 		for (const promo of promotions) {
-			const applicableItems = promo.applicable_items ? JSON.parse(promo.applicable_items as string) : {};
+			const applyTo = promo.apply_to || 'all';
+			const categoryIds = promo.category_ids ? (typeof promo.category_ids === 'string' ? JSON.parse(promo.category_ids as string) : promo.category_ids) : [];
+			const itemIds = promo.item_ids ? (typeof promo.item_ids === 'string' ? JSON.parse(promo.item_ids as string) : promo.item_ids) : [];
 			let applies = false;
 
-			const applyTo = applicableItems.apply_to || 'all';
 			if (applyTo === 'all') applies = true;
-			else if (applyTo === 'category' && (applicableItems.category_ids || []).includes(item.category_id)) applies = true;
-			else if (applyTo === 'items' && (applicableItems.item_ids || []).includes(item.id)) applies = true;
+			else if (applyTo === 'category' && categoryIds.includes(item.category_id)) applies = true;
+			else if (applyTo === 'items' && itemIds.includes(item.id)) applies = true;
 
 			if (applies) {
 				let discount = 0;
-				if (promo.discount_type === 'percentage') {
+				if (promo.promotion_type === 'percentage') {
 					discount = (item.price as number) * ((promo.discount_value as number) / 100);
-					if (promo.max_discount && discount > (promo.max_discount as number)) discount = promo.max_discount as number;
-				} else if (promo.discount_type === 'fixed_amount') {
+					if (promo.max_discount_amount && discount > (promo.max_discount_amount as number)) discount = promo.max_discount_amount as number;
+				} else if (promo.promotion_type === 'fixed_amount') {
 					discount = promo.discount_value as number;
 				}
 				if (discount > bestDiscount) {
@@ -261,7 +262,7 @@ function applyPromotions(items: any[], promotions: any[]): any[] {
 			item.original_price = item.price;
 			item.discounted_price = Math.max(0, (item.price as number) - bestDiscount);
 			item.has_promotion = true;
-			item.promotion_label = bestPromotion.discount_type === 'percentage'
+			item.promotion_label = bestPromotion.promotion_type === 'percentage'
 				? `Giảm ${Math.floor(bestPromotion.discount_value as number)}%`
 				: `Giảm ${Math.floor(bestDiscount).toLocaleString()}đ`;
 		} else {
