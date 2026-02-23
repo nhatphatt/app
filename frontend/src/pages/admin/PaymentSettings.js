@@ -353,8 +353,12 @@ const PaymentSettings = () => {
                 </div>
                 <Switch
                   checked={bankQRMethod?.is_enabled || false}
-                  onCheckedChange={(enabled) => {
+                  onCheckedChange={async (enabled) => {
                     setBankQRMethod({ ...bankQRMethod, is_enabled: enabled });
+                    try {
+                      await api.put(`/payment-methods/${bankQRMethod.id}`, { is_enabled: enabled });
+                      toast.success(enabled ? 'Đã bật QR Banking' : 'Đã tắt QR Banking');
+                    } catch (e) { toast.error('Không thể cập nhật'); }
                   }}
                 />
               </div>
@@ -467,24 +471,19 @@ const PaymentSettings = () => {
                 </div>
                 <Switch
                   checked={momoMethod?.is_enabled || false}
-                  onCheckedChange={(enabled) => {
+                  onCheckedChange={async (enabled) => {
                     if (!momoMethod) {
-                      // Create new Momo method if doesn't exist
                       setMomoMethod({
-                        id: '',
-                        method_type: 'momo',
-                        is_enabled: enabled,
-                        display_name: 'Ví MoMo',
-                        display_order: 3,
-                        config: {
-                          merchant_id: '',
-                          partner_code: '',
-                          api_key: '',
-                          secret_key: ''
-                        }
+                        id: '', method_type: 'momo', is_enabled: enabled,
+                        display_name: 'Ví MoMo', display_order: 3,
+                        config: { merchant_id: '', partner_code: '', api_key: '', secret_key: '' }
                       });
                     } else {
                       setMomoMethod({ ...momoMethod, is_enabled: enabled });
+                      try {
+                        await api.put(`/payment-methods/${momoMethod.id}`, { is_enabled: enabled });
+                        toast.success(enabled ? 'Đã bật MoMo' : 'Đã tắt MoMo');
+                      } catch (e) { toast.error('Không thể cập nhật'); }
                     }
                   }}
                 />
