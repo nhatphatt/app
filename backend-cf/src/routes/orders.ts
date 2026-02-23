@@ -8,7 +8,7 @@ const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 // ============ PUBLIC ROUTES ============
 
 // GET /public/menu/:store_slug
-app.get('/public/menu/:store_slug', async (c) => {
+app.get('/public/:store_slug/menu', async (c) => {
 	const storeSlug = c.req.param('store_slug');
 	const env = c.env;
 
@@ -263,6 +263,20 @@ app.get('/tables', authMiddleware, async (c) => {
 	}));
 
 	return c.json(results);
+});
+
+// GET /tables/:id - Public table info (for QR code scanning)
+app.get('/tables/:id', async (c) => {
+	const tableId = c.req.param('id');
+	const table = await c.env.DB.prepare('SELECT * FROM tables WHERE id = ?').bind(tableId).first();
+	if (!table) return c.json({ detail: 'Table not found' }, 404);
+
+	const store = await c.env.DB.prepare('SELECT slug FROM stores WHERE id = ?').bind(table.store_id).first();
+	const frontendUrl = c.req.header('x-frontend-url') || c.env.FRONTEND_URL;
+	return c.json({
+		...table,
+		qr_code_url: table.qr_code_url || `${frontendUrl}/menu/${store?.slug || ''}?table=${table.id}`,
+	});
 });
 
 // POST /tables
