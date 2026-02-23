@@ -185,7 +185,7 @@ app.get('/public/orders/:order_id', async (c) => {
 	const orderId = c.req.param('order_id');
 	const order = await c.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
 	if (!order) return c.json({ detail: 'Order not found' }, 404);
-	return c.json(order);
+	return c.json({ ...order, items: typeof order.items === 'string' ? JSON.parse(order.items as string) : order.items });
 });
 
 // ============ AUTHENTICATED ROUTES ============
@@ -209,7 +209,11 @@ app.get('/orders', authMiddleware, async (c) => {
 	params.push(limit, offset);
 
 	const orders = await c.env.DB.prepare(sql).bind(...params).all();
-	return c.json(orders.results || []);
+	const results = (orders.results || []).map((o: any) => ({
+		...o,
+		items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
+	}));
+	return c.json(results);
 });
 
 // PUT /orders/:id/status
