@@ -117,9 +117,6 @@ const BankSelect = ({ value, onChange, disabled }) => {
           placeholder="Tìm kiếm ngân hàng..."
           className="flex-1 outline-none bg-transparent text-sm min-w-0"
         />
-        {selectedBank && !isOpen && (
-          <span className="text-sm text-gray-700 truncate">{selectedBank.name}</span>
-        )}
         <div className="flex items-center gap-1 flex-shrink-0">
           {selectedBank && (
             <button
