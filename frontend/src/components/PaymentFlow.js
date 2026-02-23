@@ -101,10 +101,8 @@ const PaymentFlow = ({ order, storeSlug, onSuccess, onCancel, open }) => {
         return;
       }
 
-      // Start polling for non-cash payments (bank_qr)
-      if (method.id !== "cash") {
-        startPolling(response.data.payment_id);
-      }
+      // Start polling for all payment methods
+      startPolling(response.data.payment_id);
     } catch (error) {
       toast.error("Không thể khởi tạo thanh toán");
       setStep("failed");
