@@ -6,8 +6,7 @@ import { generateId } from '../utils/crypto';
 const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 
 // POST /payments/initiate
-app.post('/initiate', authMiddleware, async (c) => {
-	const user = c.get('user');
+app.post('/initiate', async (c) => {
 	const body = await c.req.json();
 	const { order_id, payment_method, customer_info } = body;
 
@@ -17,8 +16,8 @@ app.post('/initiate', authMiddleware, async (c) => {
 
 	try {
 		const order = await c.env.DB.prepare(
-			'SELECT * FROM orders WHERE id = ? AND store_id = ?'
-		).bind(order_id, user.store_id).first();
+			'SELECT * FROM orders WHERE id = ?'
+		).bind(order_id).first();
 
 		if (!order) return c.json({ detail: 'Order not found' }, 404);
 		if (order.payment_status === 'paid') return c.json({ detail: 'Order already paid' }, 400);
@@ -31,8 +30,8 @@ app.post('/initiate', authMiddleware, async (c) => {
 
 		if (payment_method === 'cash') {
 			await c.env.DB.prepare(
-				'INSERT INTO payments (id, store_id, order_id, amount, method, status, transaction_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-			).bind(payment_id, user.store_id, order_id, order.total, 'cash', 'pending', '', now).run();
+				'INSERT INTO payments (id, store_id, order_id, amount, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+			).bind(payment_id, order.store_id, order_id, order.total, 'cash', 'pending', now).run();
 
 			response = {
 				payment_id,
@@ -46,7 +45,7 @@ app.post('/initiate', authMiddleware, async (c) => {
 		} else if (payment_method === 'bank_qr') {
 			const pm = await c.env.DB.prepare(
 				"SELECT * FROM payment_methods WHERE store_id = ? AND type = 'bank_qr' AND is_active = 1"
-			).bind(user.store_id).first();
+			).bind(order.store_id).first();
 
 			if (!pm) return c.json({ detail: 'Bank QR payment method not configured or disabled' }, 400);
 
@@ -60,8 +59,8 @@ app.post('/initiate', authMiddleware, async (c) => {
 			const qr_code_url = `https://img.vietqr.io/image/${config.bank_bin}-${config.account_number}-compact2.jpg?amount=${amount}&addInfo=${payment_content}&accountName=${config.account_name}`;
 
 			await c.env.DB.prepare(
-				'INSERT INTO payments (id, store_id, order_id, amount, method, status, transaction_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-			).bind(payment_id, user.store_id, order_id, order.total, 'bank_qr', 'pending', '', now).run();
+				'INSERT INTO payments (id, store_id, order_id, amount, payment_method, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+			).bind(payment_id, order.store_id, order_id, order.total, 'bank_qr', 'pending', now).run();
 
 			response = {
 				payment_id,

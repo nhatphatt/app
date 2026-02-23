@@ -98,12 +98,11 @@ app.get('/public/:store_slug/menu', async (c) => {
 });
 
 // POST /public/orders
-app.post('/public/orders', async (c) => {
+app.post('/public/:store_slug/orders', async (c) => {
 	const body = await c.req.json();
-	const { store_slug, table_number, customer_name, customer_phone, items, note } = body;
+	const store_slug = c.req.param('store_slug');
+	const { table_number, customer_name, customer_phone, items, note } = body;
 	const env = c.env;
-
-	if (!store_slug) return c.json({ detail: 'store_slug is required' }, 400);
 
 	const store = await env.DB.prepare('SELECT * FROM stores WHERE slug = ?').bind(store_slug).first();
 	if (!store) return c.json({ detail: 'Store not found' }, 404);
