@@ -95,7 +95,11 @@ app.put('/employees/:employee_id', authMiddleware, async (c) => {
 app.delete('/employees/:employee_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
-		const result = await c.env.DB.prepare('DELETE FROM employees WHERE id = ? AND store_id = ?').bind(c.req.param('employee_id'), user.store_id).run();
+		const empId = c.req.param('employee_id');
+		// Delete related records first (FK constraints)
+		await c.env.DB.prepare('DELETE FROM attendance_logs WHERE employee_id = ?').bind(empId).run();
+		await c.env.DB.prepare('DELETE FROM shifts WHERE employee_id = ?').bind(empId).run();
+		const result = await c.env.DB.prepare('DELETE FROM employees WHERE id = ? AND store_id = ?').bind(empId, user.store_id).run();
 		if (!result.meta.changes) return c.json({ detail: 'Employee not found' }, 404);
 		return c.json({ message: 'Employee deleted successfully' });
 	} catch (e: any) {
