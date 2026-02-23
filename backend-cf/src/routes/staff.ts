@@ -5,11 +5,10 @@ import { generateId } from '../utils/crypto';
 
 const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 
-app.use('*', authMiddleware);
 
 // ============ EMPLOYEE ROUTES (/employees) ============
 
-app.get('/employees', async (c) => {
+app.get('/employees', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const status = c.req.query('status');
@@ -24,7 +23,7 @@ app.get('/employees', async (c) => {
 	}
 });
 
-app.get('/employees/:employee_id', async (c) => {
+app.get('/employees/:employee_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const emp = await c.env.DB.prepare('SELECT * FROM employees WHERE id = ? AND store_id = ?').bind(c.req.param('employee_id'), user.store_id).first();
@@ -35,7 +34,7 @@ app.get('/employees/:employee_id', async (c) => {
 	}
 });
 
-app.post('/employees', async (c) => {
+app.post('/employees', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -57,7 +56,7 @@ app.post('/employees', async (c) => {
 	}
 });
 
-app.put('/employees/:employee_id', async (c) => {
+app.put('/employees/:employee_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const empId = c.req.param('employee_id');
@@ -93,7 +92,7 @@ app.put('/employees/:employee_id', async (c) => {
 	}
 });
 
-app.delete('/employees/:employee_id', async (c) => {
+app.delete('/employees/:employee_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const result = await c.env.DB.prepare('DELETE FROM employees WHERE id = ? AND store_id = ?').bind(c.req.param('employee_id'), user.store_id).run();
@@ -104,7 +103,7 @@ app.delete('/employees/:employee_id', async (c) => {
 	}
 });
 
-app.post('/employees/bulk-import', async (c) => {
+app.post('/employees/bulk-import', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -145,7 +144,7 @@ function calcHours(start: string, end: string): number {
 	return Math.round(hours * 100) / 100;
 }
 
-app.get('/shifts', async (c) => {
+app.get('/shifts', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		let sql = 'SELECT * FROM shifts WHERE store_id = ?';
@@ -164,7 +163,7 @@ app.get('/shifts', async (c) => {
 	}
 });
 
-app.get('/shifts/:shift_id', async (c) => {
+app.get('/shifts/:shift_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const shift = await c.env.DB.prepare('SELECT * FROM shifts WHERE id = ? AND store_id = ?').bind(c.req.param('shift_id'), user.store_id).first();
@@ -175,7 +174,7 @@ app.get('/shifts/:shift_id', async (c) => {
 	}
 });
 
-app.post('/shifts', async (c) => {
+app.post('/shifts', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -202,7 +201,7 @@ app.post('/shifts', async (c) => {
 	}
 });
 
-app.post('/shifts/bulk-create', async (c) => {
+app.post('/shifts/bulk-create', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -239,7 +238,7 @@ app.post('/shifts/bulk-create', async (c) => {
 	}
 });
 
-app.put('/shifts/:shift_id', async (c) => {
+app.put('/shifts/:shift_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const shiftId = c.req.param('shift_id');
@@ -280,7 +279,7 @@ app.put('/shifts/:shift_id', async (c) => {
 	}
 });
 
-app.delete('/shifts/:shift_id', async (c) => {
+app.delete('/shifts/:shift_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const result = await c.env.DB.prepare('DELETE FROM shifts WHERE id = ? AND store_id = ?').bind(c.req.param('shift_id'), user.store_id).run();
@@ -293,7 +292,7 @@ app.delete('/shifts/:shift_id', async (c) => {
 
 // ============ ATTENDANCE ROUTES (/attendance) ============
 
-app.post('/attendance/checkin', async (c) => {
+app.post('/attendance/checkin', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -321,7 +320,7 @@ app.post('/attendance/checkin', async (c) => {
 	}
 });
 
-app.post('/attendance/checkout/:attendance_id', async (c) => {
+app.post('/attendance/checkout/:attendance_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const attId = c.req.param('attendance_id');
@@ -348,7 +347,7 @@ app.post('/attendance/checkout/:attendance_id', async (c) => {
 	}
 });
 
-app.get('/attendance/active', async (c) => {
+app.get('/attendance/active', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const result = await c.env.DB.prepare("SELECT * FROM attendance_logs WHERE store_id = ? AND status = 'checked_in' AND check_out_time IS NULL ORDER BY check_in_time DESC LIMIT 100").bind(user.store_id).all();
@@ -358,7 +357,7 @@ app.get('/attendance/active', async (c) => {
 	}
 });
 
-app.get('/attendance/employee/:employee_id/stats', async (c) => {
+app.get('/attendance/employee/:employee_id/stats', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const employeeId = c.req.param('employee_id');
@@ -399,7 +398,7 @@ app.get('/attendance/employee/:employee_id/stats', async (c) => {
 	}
 });
 
-app.get('/attendance', async (c) => {
+app.get('/attendance', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		let sql = 'SELECT * FROM attendance_logs WHERE store_id = ?';

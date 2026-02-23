@@ -5,10 +5,9 @@ import { generateId } from '../utils/crypto';
 
 const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 
-app.use('*', authMiddleware);
 
 // GET /inventory-dishes/stats/summary
-app.get('/stats/summary', async (c) => {
+app.get('/stats/summary', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const storeId = user.store_id;
@@ -40,7 +39,7 @@ app.get('/stats/summary', async (c) => {
 });
 
 // GET /inventory-dishes/low-stock
-app.get('/low-stock', async (c) => {
+app.get('/low-stock', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const items = await c.env.DB.prepare('SELECT * FROM dishes_inventory WHERE store_id = ? AND is_low_stock = 1').bind(user.store_id).all();
@@ -51,7 +50,7 @@ app.get('/low-stock', async (c) => {
 });
 
 // GET /inventory-dishes
-app.get('/', async (c) => {
+app.get('/', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const items = await c.env.DB.prepare('SELECT * FROM dishes_inventory WHERE store_id = ? ORDER BY dish_name ASC').bind(user.store_id).all();
@@ -62,7 +61,7 @@ app.get('/', async (c) => {
 });
 
 // GET /inventory-dishes/:item_id
-app.get('/:item_id', async (c) => {
+app.get('/:item_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const item = await c.env.DB.prepare('SELECT * FROM dishes_inventory WHERE id = ? AND store_id = ?').bind(c.req.param('item_id'), user.store_id).first();
@@ -74,7 +73,7 @@ app.get('/:item_id', async (c) => {
 });
 
 // POST /inventory-dishes
-app.post('/', async (c) => {
+app.post('/', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();
@@ -99,7 +98,7 @@ app.post('/', async (c) => {
 });
 
 // PUT /inventory-dishes/:item_id
-app.put('/:item_id', async (c) => {
+app.put('/:item_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const itemId = c.req.param('item_id');
@@ -138,7 +137,7 @@ app.put('/:item_id', async (c) => {
 });
 
 // POST /inventory-dishes/:item_id/adjust
-app.post('/:item_id/adjust', async (c) => {
+app.post('/:item_id/adjust', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const itemId = c.req.param('item_id');
@@ -178,7 +177,7 @@ app.post('/:item_id/adjust', async (c) => {
 });
 
 // GET /inventory-dishes/:item_id/history
-app.get('/:item_id/history', async (c) => {
+app.get('/:item_id/history', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const itemId = c.req.param('item_id');
@@ -195,7 +194,7 @@ app.get('/:item_id/history', async (c) => {
 });
 
 // DELETE /inventory-dishes/:item_id
-app.delete('/:item_id', async (c) => {
+app.delete('/:item_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const result = await c.env.DB.prepare('DELETE FROM dishes_inventory WHERE id = ? AND store_id = ?').bind(c.req.param('item_id'), user.store_id).run();
@@ -207,7 +206,7 @@ app.delete('/:item_id', async (c) => {
 });
 
 // POST /inventory-dishes/bulk-import
-app.post('/bulk-import', async (c) => {
+app.post('/bulk-import', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
 		const body = await c.req.json();

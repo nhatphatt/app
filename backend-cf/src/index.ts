@@ -22,17 +22,29 @@ app.use('*', corsMiddleware());
 app.get('/', (c) => c.json({ status: 'ok', service: 'Minitake API', version: '1.0.0' }));
 app.get('/health', (c) => c.json({ status: 'healthy' }));
 
+// Auth routes: /api/auth/*
 app.route('/api', authRoutes);
+// Store/category/menu routes: /api/stores/*, /api/categories, /api/menu-items
 app.route('/api', storesRoutes);
+// Order/table/public routes: /api/orders, /api/tables, /api/public/*
 app.route('/api', ordersRoutes);
-app.route('/api', paymentsRoutes);
-app.route('/api', promotionsRoutes);
-app.route('/api', analyticsRoutes);
-app.route('/api', inventoryRoutes);
+// Payments: /api/payments/*
+app.route('/api/payments', paymentsRoutes);
+// Promotions: /api/promotions/*
+app.route('/api/promotions', promotionsRoutes);
+// Analytics: /api/analytics/*
+app.route('/api/analytics', analyticsRoutes);
+// Inventory: /api/inventory-dishes/*
+app.route('/api/inventory-dishes', inventoryRoutes);
+// Staff: /api/employees, /api/shifts, /api/attendance
 app.route('/api', staffRoutes);
-app.route('/api', subscriptionsRoutes);
-app.route('/api', superadminRoutes);
-app.route('/api', webhooksRoutes);
-app.route('/api', chatbotRoutes);
+// Subscriptions: /api/subscriptions/*
+app.route('/api/subscriptions', subscriptionsRoutes);
+// Super admin: /api/super-admin/*
+app.route('/api/super-admin', superadminRoutes);
+// Webhooks: /api/webhooks/*
+app.route('/api/webhooks', webhooksRoutes);
+// Chatbot: /api/chatbot/*
+app.route('/api/chatbot', chatbotRoutes);
 
 export default app;

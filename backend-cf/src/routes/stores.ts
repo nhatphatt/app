@@ -5,10 +5,9 @@ import { generateId } from '../utils/crypto';
 
 const app = new Hono<{ Bindings: Env; Variables: { user: any } }>();
 
-app.use('/*', authMiddleware);
 
 // GET /stores/me
-app.get('/stores/me', async (c) => {
+app.get('/stores/me', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const store = await c.env.DB.prepare('SELECT * FROM stores WHERE id = ?').bind(user.store_id).first();
 	if (!store) return c.json({ detail: 'Store not found' }, 404);
@@ -16,7 +15,7 @@ app.get('/stores/me', async (c) => {
 });
 
 // PUT /stores/me
-app.put('/stores/me', async (c) => {
+app.put('/stores/me', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const body = await c.req.json();
 
@@ -46,7 +45,7 @@ app.put('/stores/me', async (c) => {
 });
 
 // GET /categories
-app.get('/categories', async (c) => {
+app.get('/categories', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const { results } = await c.env.DB.prepare(
 		'SELECT * FROM categories WHERE store_id = ? ORDER BY display_order ASC'
@@ -55,7 +54,7 @@ app.get('/categories', async (c) => {
 });
 
 // POST /categories
-app.post('/categories', async (c) => {
+app.post('/categories', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const body = await c.req.json();
 	const id = generateId();
@@ -70,7 +69,7 @@ app.post('/categories', async (c) => {
 });
 
 // PUT /categories/:id
-app.put('/categories/:id', async (c) => {
+app.put('/categories/:id', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const categoryId = c.req.param('id');
 	const body = await c.req.json();
@@ -86,7 +85,7 @@ app.put('/categories/:id', async (c) => {
 });
 
 // DELETE /categories/:id
-app.delete('/categories/:id', async (c) => {
+app.delete('/categories/:id', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const categoryId = c.req.param('id');
 
@@ -99,7 +98,7 @@ app.delete('/categories/:id', async (c) => {
 });
 
 // GET /menu-items
-app.get('/menu-items', async (c) => {
+app.get('/menu-items', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const { results } = await c.env.DB.prepare(
 		'SELECT * FROM menu_items WHERE store_id = ?'
@@ -115,7 +114,7 @@ app.get('/menu-items', async (c) => {
 });
 
 // POST /menu-items
-app.post('/menu-items', async (c) => {
+app.post('/menu-items', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const body = await c.req.json();
 
@@ -136,7 +135,7 @@ app.post('/menu-items', async (c) => {
 });
 
 // PUT /menu-items/:id
-app.put('/menu-items/:id', async (c) => {
+app.put('/menu-items/:id', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const itemId = c.req.param('id');
 	const body = await c.req.json();
@@ -152,7 +151,7 @@ app.put('/menu-items/:id', async (c) => {
 });
 
 // DELETE /menu-items/:id
-app.delete('/menu-items/:id', async (c) => {
+app.delete('/menu-items/:id', authMiddleware, async (c) => {
 	const user = c.get('user');
 	const itemId = c.req.param('id');
 

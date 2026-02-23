@@ -1,4 +1,4 @@
-const PAYOS_API_URL = 'https://api.payos.vn';
+const PAYOS_API_URL = 'https://api-merchant.payos.vn';
 
 interface PayOSConfig {
 	clientId: string;
