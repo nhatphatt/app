@@ -275,4 +275,44 @@ function applyPromotions(items: any[], promotions: any[]): any[] {
 	});
 }
 
+// GET /payment-methods (alias for /payments/methods)
+app.get('/payment-methods', authMiddleware, async (c) => {
+	const user = c.get('user');
+	const { results } = await c.env.DB.prepare(
+		'SELECT * FROM payment_methods WHERE store_id = ? ORDER BY created_at DESC'
+	).bind(user.store_id).all();
+	const methods = (results || []).map((m: any) => ({
+		...m,
+		config: m.config ? JSON.parse(m.config) : {},
+		is_active: !!m.is_active,
+	}));
+	return c.json(methods);
+});
+
+// PUT /payment-methods/:id
+app.put('/payment-methods/:id', authMiddleware, async (c) => {
+	const user = c.get('user');
+	const id = c.req.param('id');
+	const body = await c.req.json();
+	const existing = await c.env.DB.prepare(
+		'SELECT * FROM payment_methods WHERE id = ? AND store_id = ?'
+	).bind(id, user.store_id).first();
+	if (!existing) return c.json({ detail: 'Payment method not found' }, 404);
+
+	const updates: string[] = [];
+	const values: any[] = [];
+	if (body.is_active !== undefined) { updates.push('is_active = ?'); values.push(body.is_active ? 1 : 0); }
+	if (body.config !== undefined) { updates.push('config = ?'); values.push(JSON.stringify(body.config)); }
+	if (updates.length === 0) return c.json(existing);
+
+	values.push(id);
+	await c.env.DB.prepare(`UPDATE payment_methods SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run();
+	const updated = await c.env.DB.prepare('SELECT * FROM payment_methods WHERE id = ?').bind(id).first() as any;
+	return c.json({
+		...updated,
+		config: updated?.config ? JSON.parse(updated.config) : {},
+		is_active: !!updated?.is_active,
+	});
+});
+
 export default app;
