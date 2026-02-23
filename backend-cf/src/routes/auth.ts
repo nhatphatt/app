@@ -53,6 +53,11 @@ app.post('/auth/register', async (c) => {
 			now
 		).run();
 
+		// Seed default payment methods
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'cash', 'Tiền mặt', 1, '{}', ?)").bind(generateId(), storeId, now).run();
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'bank_qr', 'Chuyển khoản QR', 0, '{\"bank_name\":\"\",\"bank_bin\":\"\",\"account_number\":\"\",\"account_name\":\"\"}', ?)").bind(generateId(), storeId, now).run();
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'momo', 'MoMo', 0, '{\"phone\":\"\"}', ?)").bind(generateId(), storeId, now).run();
+
 		// Create subscription for PRO plan
 		let subscriptionId: string | null = null;
 		if (plan_id === 'pro') {
@@ -203,6 +208,11 @@ app.post('/auth/register/complete', async (c) => {
 			`INSERT INTO stores (id, name, slug, logo, address, phone, plan_id, subscription_status, max_tables, is_suspended, created_at)
 			 VALUES (?, ?, ?, '', '', '', 'pro', 'active', NULL, 0, ?)`
 		).bind(storeId, pendingReg.store_name, pendingReg.store_slug, now).run();
+
+		// Seed default payment methods
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'cash', 'Tiền mặt', 1, '{}', ?)").bind(generateId(), storeId, now).run();
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'bank_qr', 'Chuyển khoản QR', 0, '{\"bank_name\":\"\",\"bank_bin\":\"\",\"account_number\":\"\",\"account_name\":\"\"}', ?)").bind(generateId(), storeId, now).run();
+		await env.DB.prepare("INSERT INTO payment_methods (id, store_id, method_type, name, is_active, config, created_at) VALUES (?, ?, 'momo', 'MoMo', 0, '{\"phone\":\"\"}', ?)").bind(generateId(), storeId, now).run();
 
 		// Create subscription
 		await env.DB.prepare(
