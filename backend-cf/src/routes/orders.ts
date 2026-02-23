@@ -116,8 +116,8 @@ app.post('/public/:store_slug/orders', async (c) => {
 	const now = new Date().toISOString();
 
 	await env.DB.prepare(
-		`INSERT INTO orders (id, store_id, table_number, customer_name, customer_phone, items, total, status, payment_status, note, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		`INSERT INTO orders (id, store_id, table_number, customer_name, customer_phone, items, total, status, payment_status, note, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	).bind(
 		orderId,
 		store.id,
@@ -129,7 +129,6 @@ app.post('/public/:store_slug/orders', async (c) => {
 		'pending',
 		'pending',
 		note || '',
-		now,
 		now
 	).run();
 
@@ -137,7 +136,7 @@ app.post('/public/:store_slug/orders', async (c) => {
 	try {
 		for (const orderItem of items) {
 			const inventory = await env.DB.prepare(
-				'SELECT * FROM dish_inventory WHERE store_id = ? AND menu_item_id = (SELECT id FROM menu_items WHERE store_id = ? AND name = ? LIMIT 1)'
+				'SELECT * FROM dishes_inventory WHERE store_id = ? AND menu_item_id = (SELECT id FROM menu_items WHERE store_id = ? AND name = ? LIMIT 1)'
 			).bind(store.id, store.id, orderItem.name).first();
 
 			if (!inventory) continue;
@@ -147,8 +146,8 @@ app.post('/public/:store_slug/orders', async (c) => {
 			const newStock = Math.max(0, currentStock - qtyToDeduct);
 
 			await env.DB.prepare(
-				'UPDATE dish_inventory SET quantity = ?, updated_at = ? WHERE id = ?'
-			).bind(newStock, now, inventory.id).run();
+				'UPDATE dishes_inventory SET quantity = ? WHERE id = ?'
+			).bind(newStock, inventory.id).run();
 
 			await env.DB.prepare(
 				'INSERT INTO inventory_history (id, store_id, menu_item_id, change_amount, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
@@ -231,8 +230,6 @@ app.put('/orders/:id/status', authMiddleware, async (c) => {
 		return c.json({ detail: 'No fields to update' }, 400);
 	}
 
-	updates.push('updated_at = ?');
-	values.push(new Date().toISOString());
 	values.push(orderId, user.store_id);
 
 	await c.env.DB.prepare(

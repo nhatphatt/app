@@ -83,8 +83,8 @@ app.post('/initiate', async (c) => {
 		}
 
 		await c.env.DB.prepare(
-			"UPDATE orders SET payment_status = 'processing', updated_at = ? WHERE id = ?"
-		).bind(now, order_id).run();
+			"UPDATE orders SET payment_status = 'processing' WHERE id = ?"
+		).bind(order_id).run();
 
 		return c.json(response);
 	} catch (e: any) {
@@ -155,8 +155,8 @@ app.post('/:payment_id/confirm', authMiddleware, async (c) => {
 	).bind(now, payment_id).run();
 
 	await c.env.DB.prepare(
-		"UPDATE orders SET payment_status = 'paid', status = 'completed', updated_at = ? WHERE id = ?"
-	).bind(now, payment.order_id).run();
+		"UPDATE orders SET payment_status = 'paid', status = 'completed' WHERE id = ?"
+	).bind(payment.order_id).run();
 
 	return c.json({ payment_id, status: 'paid', confirmed_by: user.id });
 });
@@ -202,8 +202,8 @@ app.post('/webhooks/bank-transfer', async (c) => {
 		).bind(transaction_id || now, payment.id).run();
 
 		await c.env.DB.prepare(
-			"UPDATE orders SET payment_status = 'paid', status = 'completed', updated_at = ? WHERE id = ?"
-		).bind(now, payment.order_id).run();
+			"UPDATE orders SET payment_status = 'paid', status = 'completed' WHERE id = ?"
+		).bind(payment.order_id).run();
 
 		return c.json({ status: 'success', payment_id: payment.id, order_id: payment.order_id });
 	} catch (e: any) {
@@ -231,8 +231,8 @@ app.post('/webhooks/test-payment', authMiddleware, async (c) => {
 	).bind(now, payment_id).run();
 
 	await c.env.DB.prepare(
-		"UPDATE orders SET payment_status = 'paid', status = 'completed', updated_at = ? WHERE id = ?"
-	).bind(now, payment.order_id).run();
+		"UPDATE orders SET payment_status = 'paid', status = 'completed' WHERE id = ?"
+	).bind(payment.order_id).run();
 
 	return c.json({ status: 'success', payment_id, order_id: payment.order_id });
 });
