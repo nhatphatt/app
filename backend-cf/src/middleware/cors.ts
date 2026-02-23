@@ -2,6 +2,7 @@ import { cors } from 'hono/cors';
 import type { Env } from '../types';
 
 const ALLOWED_ORIGINS = [
+	'https://minitake-app.pages.dev',
 	'https://minitake.pages.dev',
 	'https://minitake-e1u.pages.dev',
 	'https://minitake.vercel.app',

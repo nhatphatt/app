@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://minitake-e1u.pages.dev"
+FRONTEND_URL = "https://minitake-app.pages.dev"
 
 [[d1_databases]]
 binding = "DB"
