@@ -13,8 +13,6 @@ import {
   Package,
   Users,
   Store,
-  Bell,
-  Search,
   Crown,
   History,
 } from "lucide-react";
@@ -23,7 +21,6 @@ import { logout, getAuthUser } from "@/utils/auth";
 import { toast } from "sonner";
 import api from "@/utils/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Input } from "@/components/ui/input";
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -189,22 +186,7 @@ const AdminLayout = () => {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Header */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center gap-4 w-1/3">
-            <div className="relative w-full max-w-md hidden md:block">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm..."
-                className="pl-9 bg-muted/50 border-none focus-visible:ring-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2 h-2 w-2 bg-destructive rounded-full border-2 border-card"></span>
-            </Button>
-          </div>
+          <div></div>
         </header>
 
         {/* Page Content */}
