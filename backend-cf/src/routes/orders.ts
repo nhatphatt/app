@@ -43,31 +43,23 @@ app.get('/public/:store_slug/menu', async (c) => {
 
 		for (const promo of promotions.results as any[]) {
 			let applies = false;
-			const applicableItems = promo.applicable_items ? JSON.parse(promo.applicable_items) : {};
+			const applyTo = promo.apply_to || 'all';
+			const categoryIds = promo.category_ids ? (typeof promo.category_ids === 'string' ? JSON.parse(promo.category_ids) : promo.category_ids) : [];
+			const itemIds = promo.item_ids ? (typeof promo.item_ids === 'string' ? JSON.parse(promo.item_ids) : promo.item_ids) : [];
 
-			if (applicableItems.apply_to === 'all') {
-				applies = true;
-			} else if (applicableItems.apply_to === 'category' && (applicableItems.category_ids || []).includes(item.category_id)) {
-				applies = true;
-			} else if (applicableItems.apply_to === 'items' && (applicableItems.item_ids || []).includes(item.id)) {
-				applies = true;
-			}
+			if (applyTo === 'all') applies = true;
+			else if (applyTo === 'category' && categoryIds.includes(item.category_id)) applies = true;
+			else if (applyTo === 'items' && itemIds.includes(item.id)) applies = true;
 
 			if (applies) {
 				let discount = 0;
-				if (promo.discount_type === 'percentage') {
+				if (promo.promotion_type === 'percentage') {
 					discount = (item.price as number) * (promo.discount_value as number) / 100;
-					if (promo.max_discount && discount > (promo.max_discount as number)) {
-						discount = promo.max_discount as number;
-					}
-				} else if (promo.discount_type === 'fixed_amount') {
+					if (promo.max_discount_amount && discount > (promo.max_discount_amount as number)) discount = promo.max_discount_amount as number;
+				} else if (promo.promotion_type === 'fixed_amount') {
 					discount = promo.discount_value as number;
 				}
-
-				if (discount > bestDiscount) {
-					bestDiscount = discount;
-					bestPromotion = promo;
-				}
+				if (discount > bestDiscount) { bestDiscount = discount; bestPromotion = promo; }
 			}
 		}
 
@@ -75,11 +67,9 @@ app.get('/public/:store_slug/menu', async (c) => {
 			item.original_price = item.price;
 			item.discounted_price = Math.max(0, (item.price as number) - bestDiscount);
 			item.has_promotion = true;
-			if (bestPromotion.discount_type === 'percentage') {
-				item.promotion_label = `Giảm ${Math.floor(bestPromotion.discount_value)}%`;
-			} else {
-				item.promotion_label = `Giảm ${Math.floor(bestDiscount).toLocaleString()}đ`;
-			}
+			item.promotion_label = bestPromotion.promotion_type === 'percentage'
+				? `Giảm ${Math.floor(bestPromotion.discount_value)}%`
+				: `Giảm ${Math.floor(bestDiscount).toLocaleString()}đ`;
 		} else {
 			item.original_price = null;
 			item.discounted_price = null;
@@ -209,9 +199,24 @@ app.get('/orders', authMiddleware, async (c) => {
 	params.push(limit, offset);
 
 	const orders = await c.env.DB.prepare(sql).bind(...params).all();
+
+	// Get payment methods for these orders
+	const orderIds = (orders.results || []).map((o: any) => o.id);
+	let paymentsMap: Record<string, string> = {};
+	if (orderIds.length > 0) {
+		const placeholders = orderIds.map(() => '?').join(',');
+		const { results: payments } = await c.env.DB.prepare(
+			`SELECT order_id, payment_method FROM payments WHERE order_id IN (${placeholders})`
+		).bind(...orderIds).all();
+		for (const p of payments || []) {
+			paymentsMap[(p as any).order_id] = (p as any).payment_method;
+		}
+	}
+
 	const results = (orders.results || []).map((o: any) => ({
 		...o,
 		items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
+		payment_method: paymentsMap[o.id] || null,
 	}));
 	return c.json(results);
 });

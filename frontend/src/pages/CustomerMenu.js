@@ -413,11 +413,11 @@ const CustomerMenu = () => {
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent className="w-full sm:max-w-lg theme-customer">
+            <SheetContent className="w-full sm:max-w-lg theme-customer flex flex-col">
               <SheetHeader>
                 <SheetTitle>Giỏ hàng của bạn</SheetTitle>
               </SheetHeader>
-              <div className="mt-6 space-y-4 h-full flex flex-col">
+              <div className="mt-6 space-y-4 flex-1 flex flex-col overflow-hidden">
                 {cart.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                     <ShoppingCart className="h-12 w-12 mb-4 opacity-20" />
@@ -476,7 +476,7 @@ const CustomerMenu = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="border-t pt-4 space-y-4 mt-auto">
+                    <div className="border-t pt-4 pb-6 space-y-4 mt-auto flex-shrink-0">
                       <div className="flex justify-between items-center text-xl font-bold">
                         <span>Tổng cộng:</span>
                         <span className="text-primary">
@@ -623,14 +623,6 @@ const CustomerMenu = () => {
                     <UtensilsCrossed className="h-16 w-16 text-muted-foreground/20" />
                   </div>
                 )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white rounded-full"
-                  onClick={() => setItemDetailOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </Button>
                 {selectedItem.has_promotion && selectedItem.promotion_label && (
                   <Badge className="absolute bottom-4 left-4 bg-secondary text-secondary-foreground shadow-lg">
                     {selectedItem.promotion_label}
