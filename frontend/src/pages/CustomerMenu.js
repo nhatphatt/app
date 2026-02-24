@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLoading } from '../contexts/LoadingContext';
 import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +45,7 @@ const CustomerMenu = () => {
   );
   const tableId = searchParams.get("table");
 
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [store, setStore] = useState(null);
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -61,6 +62,7 @@ const CustomerMenu = () => {
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemDetailOpen, setItemDetailOpen] = useState(false);
+  const [tableClosed, setTableClosed] = useState(false);
 
   const [customerInfo, setCustomerInfo] = useState({
     customer_name: "",
@@ -172,6 +174,7 @@ const CustomerMenu = () => {
   };
 
   const fetchMenu = async () => {
+    showLoading('Đang tải dữ liệu...');
     try {
       const response = await axios.get(`${API_BASE}/public/${storeSlug}/menu`);
       setStore(response.data.store);
@@ -180,20 +183,25 @@ const CustomerMenu = () => {
     } catch (error) {
       toast.error("Không tìm thấy cửa hàng");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
   const fetchTableInfo = async () => {
     try {
       const response = await axios.get(`${API_BASE}/tables/${tableId}`);
-      setTableInfo(response.data);
+      const table = response.data;
+      if (table.status !== "occupied") {
+        setTableClosed(true);
+        return;
+      }
+      setTableInfo(table);
       setCustomerInfo((prev) => ({
         ...prev,
-        table_number: response.data.table_number,
+        table_number: table.table_number,
       }));
     } catch (error) {
-      // Table info fetch failed - continue without table context
+      setTableClosed(true);
     }
   };
 
@@ -202,7 +210,7 @@ const CustomerMenu = () => {
     setItemDetailOpen(true);
   };
 
-  const addToCart = (item) => {
+  const addToCart = (item, qty = 1) => {
     // Validate item has required properties
     if (!item || !item.id || !item.name) {
       console.error("Invalid item:", item);
@@ -230,11 +238,11 @@ const CustomerMenu = () => {
     if (existingItem) {
       setCart(
         cart.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i,
+          i.id === item.id ? { ...i, quantity: i.quantity + qty } : i,
         ),
       );
     } else {
-      setCart([...cart, { ...cartItem, quantity: 1 }]);
+      setCart([...cart, { ...cartItem, quantity: qty }]);
     }
     toast.success(`Đã thêm ${item.name} vào giỏ hàng`);
   };
@@ -349,18 +357,27 @@ const CustomerMenu = () => {
       ? menuItems
       : menuItems.filter((item) => item.category_id === selectedCategory);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center theme-customer">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   if (!store) {
     return (
       <div className="min-h-screen flex items-center justify-center theme-customer">
         <p className="text-muted-foreground">Không tìm thấy cửa hàng</p>
+      </div>
+    );
+  }
+
+  if (tableClosed) {
+    return (
+      <div className="min-h-screen flex items-center justify-center theme-customer bg-background">
+        <div className="text-center p-8 max-w-sm">
+          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+            <UtensilsCrossed className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Bàn chưa được mở</h2>
+          <p className="text-muted-foreground text-sm">
+            Vui lòng nhờ nhân viên mở bàn trước khi quét mã QR để gọi món.
+          </p>
+        </div>
       </div>
     );
   }
@@ -611,7 +628,7 @@ const CustomerMenu = () => {
         <DialogContent className="max-w-md p-0 overflow-hidden theme-customer bg-card border-none">
           {selectedItem && (
             <div className="flex flex-col max-h-[90vh]">
-              <div className="relative aspect-[4/3] bg-muted">
+              <div className="relative aspect-[4/3] max-h-[40vh] bg-muted overflow-hidden">
                 {selectedItem.image_url ? (
                   <img
                     src={selectedItem.image_url}
@@ -833,6 +850,7 @@ const CustomerMenu = () => {
             tableId={tableId}
             cart={cart}
             onAddToCart={addToCart}
+            onCheckout={() => setCheckoutOpen(true)}
           />
         </div>
       )}

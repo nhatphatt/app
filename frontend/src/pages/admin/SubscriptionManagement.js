@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLoading } from "../../contexts/LoadingContext";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import { toast } from "sonner";
 const SubscriptionManagement = () => {
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
@@ -29,13 +30,14 @@ const SubscriptionManagement = () => {
   }, []);
 
   const fetchSubscription = async () => {
+    showLoading('Đang tải dữ liệu...');
     try {
       const response = await api.get("/subscriptions/current");
       setSubscription(response.data);
     } catch (error) {
       toast.error("Không thể tải thông tin subscription");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -80,13 +82,6 @@ const SubscriptionManagement = () => {
     }).format(value);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-      </div>
-    );
-  }
 
   const isPro = subscription?.plan_id === "pro";
   const isTrial = subscription?.status === "trial";

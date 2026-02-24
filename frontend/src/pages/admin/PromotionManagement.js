@@ -36,12 +36,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/api";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { useLoading } from "../../contexts/LoadingContext";
 
 const PromotionManagement = () => {
   const [promotions, setPromotions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'danger' });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState(null);
 
@@ -81,13 +84,13 @@ const PromotionManagement = () => {
         api.get("/categories"),
         api.get("/menu-items"),
       ]);
-      setPromotions(promotionsRes.data);
-      setCategories(categoriesRes.data);
-      setMenuItems(itemsRes.data);
+      setPromotions(promotionsRes.data || []);
+      setCategories(categoriesRes.data || []);
+      setMenuItems(itemsRes.data || []);
     } catch (error) {
       toast.error("Không thể tải dữ liệu");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -124,15 +127,24 @@ const PromotionManagement = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa khuyến mãi này?")) return;
-    try {
-      await api.delete(`/promotions/${id}`);
-      toast.success("Xóa khuyến mãi thành công");
-      fetchData();
-    } catch (error) {
-      toast.error("Không thể xóa khuyến mãi");
-    }
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa khuyến mãi',
+      description: 'Bạn có chắc chắn muốn xóa khuyến mãi này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/promotions/${id}`);
+          toast.success("Xóa khuyến mãi thành công");
+          fetchData();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          toast.error("Không thể xóa khuyến mãi");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   const handleToggleActive = async (promotion) => {
@@ -223,13 +235,6 @@ const PromotionManagement = () => {
     return <Badge className="bg-red-100 text-red-700">Đã hết hạn</Badge>;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">
@@ -720,6 +725,14 @@ const PromotionManagement = () => {
           ))
         )}
       </div>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+      />
     </div>
   );
 };

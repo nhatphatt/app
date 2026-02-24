@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLoading } from "../../contexts/LoadingContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   DollarSign,
@@ -52,7 +53,7 @@ const AdminDashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -60,6 +61,7 @@ const AdminDashboard = () => {
   }, []);
 
   const fetchAllData = async () => {
+    showLoading('Đang tải dữ liệu...');
     try {
       const [statsRes, chartRes, itemsRes, ordersRes, paymentsRes, alertsRes] =
         await Promise.all([
@@ -73,15 +75,15 @@ const AdminDashboard = () => {
 
       setStats(statsRes.data);
       setRevenueChart(chartRes.data);
-      setTopItems(itemsRes.data);
-      setRecentOrders(ordersRes.data);
+      setTopItems(itemsRes.data || []);
+      setRecentOrders(ordersRes.data || []);
       setPaymentMethods(paymentsRes.data);
-      setAlerts(alertsRes.data);
+      setAlerts(alertsRes.data || []);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
       toast.error("Không thể tải dữ liệu thống kê");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -159,21 +161,6 @@ const AdminDashboard = () => {
 
   const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 bg-muted/20 rounded-xl animate-pulse" />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 h-96 bg-muted/20 rounded-xl animate-pulse" />
-          <div className="h-96 bg-muted/20 rounded-xl animate-pulse" />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-8 pb-8">

@@ -23,11 +23,15 @@ import SubscriptionManagement from "@/pages/admin/SubscriptionManagement";
 import PaymentsManagement from "@/pages/admin/PaymentsManagement";
 import SuperAdminDashboard from "@/pages/admin/SuperAdminDashboard";
 import SuperAdminUsers from "@/pages/admin/SuperAdminUsers";
+import SuperAdminStoreDetail from "@/pages/admin/SuperAdminStoreDetail";
 import AdminLayout from "@/components/AdminLayout";
+import SuperAdminLayout from "@/components/SuperAdminLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { LoadingProvider } from "@/contexts/LoadingContext";
 
 function App() {
   return (
+    <LoadingProvider>
     <div className="App">
       <BrowserRouter>
         <Routes>
@@ -72,32 +76,22 @@ function App() {
           <Route
             path="/super-admin"
             element={
-              // Redirect root to dashboard
-              <Navigate to="/super-admin/dashboard" replace />
+              <ProtectedRoute>
+                <SuperAdminLayout />
+              </ProtectedRoute>
             }
-          />
-          <Route
-            path="/super-admin/dashboard"
-            element={
-              localStorage.getItem("minitake_token")
-                ? <SuperAdminDashboard />
-                : <Navigate to="/admin/login" replace />
-            }
-          />
-          <Route
-            path="/super-admin/users"
-            element={
-              localStorage.getItem("minitake_token")
-                ? <SuperAdminUsers />
-                : <Navigate to="/admin/login" replace />
-            }
-          />
-          {/* Legacy route - redirect to dashboard */}
+          >
+            <Route index element={<Navigate to="/super-admin/dashboard" replace />} />
+            <Route path="dashboard" element={<SuperAdminDashboard />} />
+            <Route path="users" element={<SuperAdminUsers />} />
+            <Route path="stores/:storeId" element={<SuperAdminStoreDetail />} />
+          </Route>
           <Route path="/super-admin/login" element={<Navigate to="/admin/login" replace />} />
         </Routes>
       </BrowserRouter>
       <Toaster position="top-right" />
     </div>
+    </LoadingProvider>
   );
 }
 

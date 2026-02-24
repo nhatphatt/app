@@ -1,9 +1,11 @@
 import type { Env } from '../types';
 import { generateId } from '../utils/crypto';
-import { generateAIResponse, generateRecommendationIds } from './gemini';
+import { generateAIResponse, matchMenuItems } from './gemini';
+
+// ─── Helpers ───
 
 function getTimeOfDay(): string {
-	const hour = new Date().getUTCHours();
+	const hour = new Date().getUTCHours() + 7; // Vietnam timezone
 	if (hour >= 6 && hour < 11) return 'breakfast';
 	if (hour >= 11 && hour < 14) return 'lunch';
 	if (hour >= 14 && hour < 17) return 'afternoon';
@@ -11,46 +13,52 @@ function getTimeOfDay(): string {
 	return 'late_night';
 }
 
+// ─── Intent Recognition ───
+
 const INTENT_PATTERNS: Record<string, { priority: number; keywords: string[]; patterns: RegExp[] }> = {
 	greeting: {
 		priority: 1,
 		keywords: ['xin chào', 'chào', 'hello', 'hi', 'hey'],
-		patterns: [/^(xin\s)?chào\s?(bạn|shop|quán|anh|chị)?/i, /^(hi|hello|hey)\s?(there|bạn)?/i],
-	},
-	ask_recommendation: {
-		priority: 2,
-		keywords: ['gợi ý', 'nên ăn', 'nên uống', 'món gì', 'đặc sản', 'ngon'],
-		patterns: [/(nên|có)\s(ăn|uống|gọi)\s(gì|món\s?gì)/i, /gợi\sý/i, /hôm\snay\s(ăn|uống)\sgì/i],
-	},
-	ask_promotion: {
-		priority: 4,
-		keywords: ['giảm giá', 'khuyến mãi', 'sale', 'ưu đãi', 'combo', 'rẻ hơn', 'đang giảm'],
-		patterns: [/giảm\sgiá/i, /khuyến\smãi/i, /sale/i, /ưu\sđãi/i, /có\smón\snào.*(giảm|rẻ)/i],
+		patterns: [/^(xin\s)?chào/i, /^(hi|hello|hey)/i],
 	},
 	ask_menu: {
 		priority: 2,
-		keywords: ['menu', 'xem menu', 'có món gì', 'thực đơn'],
-		patterns: [/(xem|cho\sxem|show)\s(menu|thực\sđơn)/i, /^menu$/i],
+		keywords: ['menu', 'xem menu', 'có món gì', 'thực đơn', 'danh sách'],
+		patterns: [/(xem|cho\sxem|show)\s(menu|thực\sđơn)/i, /^menu$/i, /có\s(những|các)?\smón/i],
+	},
+	ask_recommendation: {
+		priority: 2,
+		keywords: ['gợi ý', 'nên ăn', 'nên uống', 'món gì', 'ngon', 'mát', 'nóng', 'nhẹ', 'no'],
+		patterns: [/(nên|có)\s(ăn|uống|gọi)/i, /gợi\sý/i, /hôm\snay\s(ăn|uống)/i, /(trời|thời tiết).*(nóng|lạnh|mát)/i, /uống\s(gì|nước)/i, /ăn\sgì/i, /món\sgì.*(ngon|hay)/i],
+	},
+	ask_promotion: {
+		priority: 4,
+		keywords: ['giảm giá', 'khuyến mãi', 'sale', 'ưu đãi', 'combo', 'rẻ', 'đang giảm'],
+		patterns: [/giảm\sgiá/i, /khuyến\smãi/i, /sale/i, /ưu\sđãi/i, /(có|đang).*(giảm|khuyến)/i],
+	},
+	order_item: {
+		priority: 3,
+		keywords: ['cho tôi', 'gọi', 'đặt', 'thêm', 'lấy', 'mua', 'order', 'một ly', 'hai ly', 'một phần'],
+		patterns: [
+			/(cho|gọi|đặt|lấy|mua)\s(tôi|mình|em|anh|chị)?\s?(một|hai|ba|\d+)?/i,
+			/thêm.*vào/i,
+			/(một|hai|ba|\d+)\s?(ly|phần|cái|tô|đĩa|chai)/i,
+		],
 	},
 	view_cart: {
 		priority: 2,
 		keywords: ['giỏ hàng', 'đã đặt', 'đơn hàng', 'xem giỏ'],
-		patterns: [/(xem|kiểm\stra)\s(giỏ\shàng|đơn\shàng)/i],
+		patterns: [/(xem|kiểm\stra)\s(giỏ|đơn)/i, /giỏ\shàng/i, /đã\s(gọi|đặt)\sgì/i],
+	},
+	payment: {
+		priority: 5,
+		keywords: ['thanh toán', 'trả tiền', 'pay', 'tính tiền', 'checkout'],
+		patterns: [/thanh\stoán/i, /trả\stiền/i, /tính\stiền/i, /checkout/i],
 	},
 	ask_item_info: {
 		priority: 2,
-		keywords: ['là gì', 'thế nào', 'như thế nào'],
-		patterns: [/(.+)\s(là\sgì|thế\snào)/i, /cho\stôi\sbiết\svề/i],
-	},
-	order_item: {
-		priority: 3,
-		keywords: ['cho tôi', 'gọi', 'đặt', 'thêm', 'lấy', 'mua'],
-		patterns: [/(cho|gọi|đặt|lấy)\s(tôi|mình|em)?/i, /thêm.*vào\sgiỏ/i],
-	},
-	payment: {
-		priority: 2,
-		keywords: ['thanh toán', 'trả tiền', 'pay'],
-		patterns: [/thanh\stoán/i, /trả\stiền/i],
+		keywords: ['là gì', 'thế nào', 'như thế nào', 'mô tả'],
+		patterns: [/(.+)\s(là\sgì|thế\snào)/i, /cho\s(tôi|mình)\sbiết\svề/i],
 	},
 	thank: {
 		priority: 1,
@@ -64,8 +72,8 @@ const INTENT_PATTERNS: Record<string, { priority: number; keywords: string[]; pa
 	},
 	help: {
 		priority: 1,
-		keywords: ['giúp', 'help', 'hướng dẫn'],
-		patterns: [/giúp/i, /help/i, /hướng\sdẫn/i],
+		keywords: ['giúp', 'help', 'hướng dẫn', 'làm sao'],
+		patterns: [/giúp/i, /help/i, /hướng\sdẫn/i, /làm\ssao/i],
 	},
 };
 
@@ -89,134 +97,130 @@ function recognizeIntent(message: string): { intent: string; confidence: number;
 	return { intent: best.intent, confidence: best.confidence || 0.1, entities: {} };
 }
 
-const FALLBACK_TEMPLATES: Record<string, string[]> = {
-	greeting: [
-		'Xin chào! Mình là trợ lý AI của quán. Bạn muốn gọi món gì hôm nay? 😊',
-		'Chào bạn! Mình ở đây để giúp bạn tìm món ngon. Hôm nay bạn muốn ăn gì nhỉ?',
-	],
-	thank: ['Không có chi ạ! Chúc bạn ăn ngon miệng! 🍴'],
-	goodbye: ['Tạm biệt! Hẹn gặp lại bạn lần sau! 👋'],
-	help: ['Mình có thể giúp bạn:\n• Gợi ý món ăn phù hợp\n• Đặt món trực tiếp\n• Xem giỏ hàng và thanh toán\n• Tìm món giảm giá\n\nBạn muốn làm gì nhỉ?'],
-	fallback: ['Xin lỗi, mình chưa hiểu rõ ý bạn. Bạn có thể nói rõ hơn được không?'],
+// ─── Templates (fallback when AI unavailable) ───
+
+const TEMPLATES: Record<string, string[]> = {
+	greeting: ['Xin chào! 😊 Mình là trợ lý AI của quán. Bạn muốn xem menu hay gợi ý món?'],
+	thank: ['Không có gì ạ! Chúc bạn ngon miệng! 😊'],
+	goodbye: ['Tạm biệt bạn! Hẹn gặp lại! 👋'],
+	help: ['Mình có thể giúp bạn:\n📋 Xem menu\n🍴 Gợi ý món ngon\n🛒 Đặt món\n💰 Xem khuyến mãi\n💳 Thanh toán'],
+	fallback: ['Mình chưa hiểu rõ ý bạn. Bạn có thể thử: xem menu, gợi ý món, hoặc đặt món nhé!'],
 };
 
 function pickTemplate(intent: string): string {
-	const templates = FALLBACK_TEMPLATES[intent] || FALLBACK_TEMPLATES.fallback;
-	return templates[Math.floor(Math.random() * templates.length)];
+	const arr = TEMPLATES[intent] || TEMPLATES.fallback;
+	return arr[Math.floor(Math.random() * arr.length)];
 }
+
+// ─── Carousel Builder ───
 
 function buildMenuCarousel(items: any[]): any {
 	return {
 		type: 'carousel',
-		items: items.map(item => ({
-			id: item.id,
-			name: item.name,
-			price: item.price,
-			image_url: item.image_url || '',
-			description: item.description || '',
-			has_promotion: item.has_promotion || false,
-			discounted_price: item.discounted_price,
-			original_price: item.original_price,
-			promotion_label: item.promotion_label,
+		items: items.map(i => ({
+			id: i.id,
+			name: i.name,
+			price: i.price,
+			discounted_price: i.discounted_price,
+			has_promotion: i.has_promotion || false,
+			promotion_label: i.promotion_label || null,
+			image_url: i.image_url,
+			description: i.description,
 		})),
 	};
 }
 
+// ─── DB Operations ───
+
 async function getMenuItems(db: D1Database, storeId: string): Promise<any[]> {
-	const { results } = await db.prepare(
-		'SELECT id, name, description, price, category_id, store_id, image_url, is_available FROM menu_items WHERE store_id = ? AND is_available = 1'
-	).bind(storeId).all();
+	const [menuResult, promoResult] = await Promise.all([
+		db.prepare(
+			'SELECT mi.*, c.name as category_name FROM menu_items mi LEFT JOIN categories c ON mi.category_id = c.id WHERE mi.store_id = ? AND mi.is_available = 1 ORDER BY c.display_order, mi.name'
+		).bind(storeId).all(),
+		db.prepare(
+			"SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND date(start_date) <= date('now') AND date(end_date) >= date('now')"
+		).bind(storeId).all(),
+	]);
 
-	if (!results || !results.length) return [];
+	const items = menuResult.results ?? [];
+	const promos = promoResult.results ?? [];
 
-	const now = new Date().toISOString();
-	const { results: promos } = await db.prepare(
-		'SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND start_date <= ? AND end_date >= ?'
-	).bind(storeId, now, now).all();
+	// Apply promotions to menu items
+	for (const item of items) {
+		for (const promo of promos) {
+			let applies = false;
+			if (promo.apply_to === 'all') {
+				applies = true;
+			} else if (promo.apply_to === 'category') {
+				try {
+					const catIds = JSON.parse(promo.category_ids as string || '[]');
+					applies = catIds.includes(item.category_id);
+				} catch {}
+			} else if (promo.apply_to === 'item') {
+				try {
+					const itemIds = JSON.parse(promo.item_ids as string || '[]');
+					applies = itemIds.includes(item.id);
+				} catch {}
+			}
 
-	if (promos && promos.length) {
-		for (const item of results as any[]) {
-			for (const promo of promos as any[]) {
-				const applicableItems = promo.applicable_items ? JSON.parse(promo.applicable_items as string) : null;
-				const applies = !applicableItems || applicableItems.includes(item.id);
-				if (applies) {
-					const val = promo.discount_value as number;
-					if (promo.discount_type === 'percentage') {
-						item.discounted_price = item.price * (1 - val / 100);
-						item.has_promotion = true;
-						item.original_price = item.price;
-						item.promotion_label = `Giảm ${val}%`;
-					} else if (promo.discount_type === 'fixed_amount') {
-						item.discounted_price = Math.max(0, (item.price as number) - val);
-						item.has_promotion = true;
-						item.original_price = item.price;
-						const pct = (item.price as number) > 0 ? Math.round(val / (item.price as number) * 100) : 0;
-						item.promotion_label = `Giảm ${pct}%`;
-					}
-					break;
+			if (applies) {
+				(item as any).has_promotion = true;
+				(item as any).promotion_label = promo.name;
+				const price = item.price as number;
+				if (promo.promotion_type === 'percentage') {
+					let discount = price * (promo.discount_value as number) / 100;
+					if (promo.max_discount_amount) discount = Math.min(discount, promo.max_discount_amount as number);
+					(item as any).discounted_price = price - discount;
+					(item as any).original_price = price;
+				} else if (promo.promotion_type === 'fixed') {
+					(item as any).discounted_price = Math.max(0, price - (promo.discount_value as number));
+					(item as any).original_price = price;
 				}
+				break; // First matching promo wins
 			}
 		}
+		if (!(item as any).has_promotion) {
+			(item as any).has_promotion = false;
+		}
 	}
-	return results as any[];
+
+	return items;
 }
 
-export async function createSession(db: D1Database, storeId: string, tableId?: string, customerPhone?: string): Promise<string> {
-	const id = generateId();
+async function createSession(db: D1Database, storeId: string, tableId?: string, customerPhone?: string): Promise<string> {
 	const sessionId = generateId();
-	const now = new Date().toISOString();
-	const context = JSON.stringify({
-		current_intent: null,
-		cart_items: [],
-		preferences: {},
-		mentioned_items: [],
-		time_of_day: getTimeOfDay(),
-	});
-	const messages = JSON.stringify([]);
-
 	await db.prepare(
-		'INSERT INTO chatbot_conversations (id, store_id, session_id, messages, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
-	).bind(id, storeId, sessionId, messages, now, now).run();
-
+		"INSERT INTO chatbot_conversations (id, store_id, session_id, messages, created_at, updated_at) VALUES (?, ?, ?, '[]', datetime('now'), datetime('now'))"
+	).bind(generateId(), storeId, sessionId).run();
 	return sessionId;
 }
 
-async function getConversation(db: D1Database, sessionId: string): Promise<any | null> {
-	return db.prepare('SELECT * FROM chatbot_conversations WHERE session_id = ?').bind(sessionId).first();
+async function getRecentMessages(db: D1Database, sessionId: string, limit: number): Promise<any[]> {
+	try {
+		const row = await db.prepare(
+			'SELECT messages FROM chatbot_conversations WHERE session_id = ? ORDER BY updated_at DESC LIMIT 1'
+		).bind(sessionId).first<{ messages: string }>();
+		if (!row?.messages) return [];
+		const msgs = JSON.parse(row.messages);
+		return Array.isArray(msgs) ? msgs.slice(-limit) : [];
+	} catch { return []; }
 }
 
-async function getRecentMessages(db: D1Database, sessionId: string, limit: number = 10): Promise<any[]> {
-	const conv = await getConversation(db, sessionId);
-	if (!conv) return [];
-	const messages = JSON.parse((conv.messages as string) || '[]');
-	return messages.slice(-limit);
+async function addMessage(db: D1Database, sessionId: string, role: string, content: string, meta?: any): Promise<void> {
+	try {
+		const row = await db.prepare(
+			'SELECT id, messages FROM chatbot_conversations WHERE session_id = ? ORDER BY updated_at DESC LIMIT 1'
+		).bind(sessionId).first<{ id: string; messages: string }>();
+		if (!row) return;
+		const msgs = JSON.parse(row.messages || '[]');
+		msgs.push({ role, content, ...meta, timestamp: new Date().toISOString() });
+		await db.prepare(
+			"UPDATE chatbot_conversations SET messages = ?, updated_at = datetime('now') WHERE id = ?"
+		).bind(JSON.stringify(msgs), row.id).run();
+	} catch {}
 }
 
-async function addMessage(
-	db: D1Database,
-	sessionId: string,
-	role: string,
-	content: string,
-	metadata?: Record<string, any>,
-	richContent?: any
-): Promise<void> {
-	const conv = await getConversation(db, sessionId);
-	if (!conv) return;
-
-	const messages = JSON.parse((conv.messages as string) || '[]');
-	messages.push({
-		id: generateId(),
-		role,
-		content,
-		timestamp: new Date().toISOString(),
-		metadata: metadata || {},
-		rich_content: richContent || null,
-	});
-
-	await db.prepare(
-		'UPDATE chatbot_conversations SET messages = ?, updated_at = ? WHERE session_id = ?'
-	).bind(JSON.stringify(messages), new Date().toISOString(), sessionId).run();
-}
+// ─── Main Process ───
 
 export async function processMessage(
 	env: Env,
@@ -236,92 +240,202 @@ export async function processMessage(
 	const conversationHistory = await getRecentMessages(db, sessionId, 10);
 	const intentResult = recognizeIntent(message);
 
-	const context: Record<string, any> = {};
+	const context: Record<string, any> = {
+		time_of_day: getTimeOfDay(),
+	};
 	if (cartItems) context.cart_items = cartItems;
 
 	await addMessage(db, sessionId, 'user', message, {
 		intent: intentResult.intent,
 		confidence: intentResult.confidence,
-		entities: intentResult.entities,
 	});
+
+	// Always fetch menu for AI context
+	const menuItems = await getMenuItems(db, storeId);
 
 	let responseText: string;
 	let richContent: any = null;
 	let suggestedActions: any[] = [];
+	let actions: any[] = []; // Client-side actions (add_to_cart, open_checkout, etc.)
 
-	const useAI = !!env.GEMINI_API_KEY;
-	const menuIntents = ['ask_recommendation', 'ask_menu', 'ask_promotion', 'ask_item_info'];
-	let menuItems: any[] | undefined;
+	const hasAI = !!env.GEMINI_API_KEY || !!env.AI;
 
-	if (menuIntents.includes(intentResult.intent)) {
-		menuItems = await getMenuItems(db, storeId);
-	}
+	try {
+		const { intent } = intentResult;
 
-	if (useAI) {
-		try {
-			responseText = await generateAIResponse(
-				env.GEMINI_API_KEY, intentResult.intent, message, context, menuItems, conversationHistory
-			);
+		// ─── EMPTY MENU GUARD ───
+		const menuIntents = ['order_item', 'ask_menu', 'ask_recommendation', 'ask_promotion', 'ask_item_info'];
+		if (menuIntents.includes(intent) && !menuItems.length) {
+			responseText = 'Quán hiện chưa có món nào trong menu. Vui lòng quay lại sau nhé! 😊';
+			await addMessage(db, sessionId, 'assistant', responseText);
+			return { session_id: sessionId, message: responseText, rich_content: null, suggested_actions: [], actions: [], intent, confidence: intentResult.confidence };
+		}
 
-			if (intentResult.intent === 'ask_menu' && menuItems?.length) {
-				richContent = buildMenuCarousel(menuItems.slice(0, 12));
+		// ─── ORDER ITEM: Parse items and add to cart ───
+		if (intent === 'order_item' && hasAI && menuItems.length) {
+			const matched = await matchMenuItems(env.GEMINI_API_KEY, message, menuItems, env.AI);
+
+			if (matched.length) {
+				const addActions = matched.map(m => {
+					const item = menuItems.find(i => i.id === m.id)!;
+					return {
+						type: 'add_to_cart',
+						item: {
+							id: item.id,
+							name: item.name,
+							price: item.has_promotion && item.discounted_price ? item.discounted_price : item.price,
+							image_url: item.image_url,
+							quantity: m.quantity,
+						},
+					};
+				});
+				actions = addActions;
+
+				const summary = matched.map(m => `${m.name} x${m.quantity}`).join(', ');
+				responseText = `Mình đã thêm ${summary} vào giỏ hàng! 🛒\nBạn muốn gọi thêm hay thanh toán luôn?`;
 				suggestedActions = [
-					{ type: 'quick_reply', label: '🍽️ Gợi ý món', payload: 'gợi ý món' },
-					{ type: 'quick_reply', label: '💰 Xem khuyến mãi', payload: 'có khuyến mãi gì' },
-				];
-			} else if (intentResult.intent === 'ask_recommendation' && menuItems?.length) {
-				const recIds = await generateRecommendationIds(env.GEMINI_API_KEY, context, menuItems, 3);
-				const recs = menuItems.filter(i => recIds.includes(i.id)).slice(0, 3);
-				if (recs.length) {
-					const recNames = recs.map(i => i.name);
-					responseText = await generateAIResponse(
-						env.GEMINI_API_KEY, intentResult.intent, message,
-						{ ...context, recommended_items: recNames }, menuItems, conversationHistory
-					);
-					richContent = buildMenuCarousel(recs);
-				}
-				suggestedActions = [
-					{ type: 'quick_reply', label: '💰 Xem khuyến mãi', payload: 'có khuyến mãi gì' },
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
 					{ type: 'quick_reply', label: '🛒 Xem giỏ hàng', payload: 'xem giỏ hàng' },
+					{ type: 'quick_reply', label: '💳 Thanh toán', payload: 'thanh toán' },
 				];
-			} else if (intentResult.intent === 'ask_promotion' && menuItems?.length) {
-				const promoItems = menuItems.filter(i => i.has_promotion);
-				if (promoItems.length) {
-					richContent = buildMenuCarousel(promoItems.slice(0, 5));
-				}
+			} else {
+				// AI couldn't match any item — let AI respond naturally with menu context
+				responseText = await generateAIResponse(
+					env.GEMINI_API_KEY, intent, message, context, menuItems, conversationHistory, env.AI
+				);
 				suggestedActions = [
-					{ type: 'quick_reply', label: '🍽️ Gợi ý món', payload: 'gợi ý món' },
-					{ type: 'quick_reply', label: '🛒 Xem giỏ hàng', payload: 'xem giỏ hàng' },
-				];
-			} else if (intentResult.intent === 'view_cart') {
-				suggestedActions = [
-					{ type: 'quick_reply', label: '🍽️ Gợi ý thêm', payload: 'gợi ý món' },
-					{ type: 'quick_reply', label: '💰 Xem khuyến mãi', payload: 'có khuyến mãi gì' },
-				];
-			} else if (intentResult.intent === 'payment') {
-				suggestedActions = [
-					{ type: 'quick_reply', label: '🛒 Xem giỏ hàng', payload: 'xem giỏ hàng' },
-					{ type: 'quick_reply', label: '🍽️ Gợi ý thêm', payload: 'gợi ý món' },
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
 				];
 			}
-		} catch {
-			responseText = pickTemplate(intentResult.intent);
+
+		// ─── PAYMENT: Trigger checkout ───
+		} else if (intent === 'payment') {
+			if (cartItems?.length) {
+				const total = cartItems.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
+				responseText = `Giỏ hàng của bạn có ${cartItems.length} món, tổng ${total.toLocaleString()}đ. Nhấn nút bên dưới để thanh toán! 💳`;
+				actions = [{ type: 'open_checkout' }];
+				suggestedActions = [
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
+					{ type: 'quick_reply', label: '🍴 Gợi ý thêm', payload: 'gợi ý món' },
+				];
+			} else {
+				responseText = 'Giỏ hàng đang trống! Bạn hãy chọn món trước nhé 😊';
+				suggestedActions = [
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
+					{ type: 'quick_reply', label: '🍴 Gợi ý món ngon', payload: 'gợi ý món' },
+				];
+			}
+
+		// ─── VIEW CART ───
+		} else if (intent === 'view_cart') {
+			if (cartItems?.length) {
+				const lines = cartItems.map((i: any) => `• ${i.name} x${i.quantity} — ${(i.price * i.quantity).toLocaleString()}đ`);
+				const total = cartItems.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
+				responseText = `🛒 Giỏ hàng của bạn:\n${lines.join('\n')}\n\n💰 Tổng: ${total.toLocaleString()}đ`;
+				suggestedActions = [
+					{ type: 'quick_reply', label: '💳 Thanh toán', payload: 'thanh toán' },
+					{ type: 'quick_reply', label: '🍴 Gợi ý thêm', payload: 'gợi ý món' },
+				];
+			} else {
+				responseText = 'Giỏ hàng đang trống! Hãy xem menu và chọn món nhé 😊';
+				suggestedActions = [
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
+					{ type: 'quick_reply', label: '🍴 Gợi ý món', payload: 'gợi ý món' },
+				];
+			}
+
+		// ─── MENU ───
+		} else if (intent === 'ask_menu' && menuItems.length) {
+			if (hasAI) {
+				responseText = await generateAIResponse(
+					env.GEMINI_API_KEY, intent, message, context, menuItems, conversationHistory, env.AI
+				);
+			} else {
+				responseText = `📋 Menu có ${menuItems.length} món! Lướt carousel bên dưới để xem nhé:`;
+			}
+			richContent = buildMenuCarousel(menuItems.slice(0, 12));
+			suggestedActions = [
+				{ type: 'quick_reply', label: '🍴 Gợi ý món', payload: 'gợi ý món' },
+				{ type: 'quick_reply', label: '💰 Khuyến mãi', payload: 'có khuyến mãi gì' },
+			];
+
+		// ─── RECOMMENDATION ───
+		} else if (intent === 'ask_recommendation' && menuItems.length) {
+			if (hasAI) {
+				responseText = await generateAIResponse(
+					env.GEMINI_API_KEY, intent, message, context, menuItems, conversationHistory, env.AI
+				);
+			} else {
+				const names = menuItems.slice(0, 3).map(i => i.name);
+				responseText = `🍴 Mình gợi ý bạn thử: ${names.join(', ')}!`;
+			}
+
+			// Extract mentioned items from AI response to build matching carousel
+			const mentionedItems = menuItems.filter(i =>
+				responseText.toLowerCase().includes(i.name.toLowerCase())
+			);
+			const recs = mentionedItems.length ? mentionedItems.slice(0, 5) : menuItems.slice(0, 3);
+			richContent = buildMenuCarousel(recs);
+			suggestedActions = [
+				{ type: 'quick_reply', label: '📋 Xem full menu', payload: 'xem menu' },
+				{ type: 'quick_reply', label: '💰 Khuyến mãi', payload: 'có khuyến mãi gì' },
+				{ type: 'quick_reply', label: '🛒 Xem giỏ hàng', payload: 'xem giỏ hàng' },
+			];
+
+		// ─── PROMOTION ───
+		} else if (intent === 'ask_promotion' && menuItems.length) {
+			const promoItems = menuItems.filter(i => i.has_promotion);
+			if (hasAI) {
+				responseText = await generateAIResponse(
+					env.GEMINI_API_KEY, intent, message, context, menuItems, conversationHistory, env.AI
+				);
+			} else if (promoItems.length) {
+				responseText = `🎉 Đang có ${promoItems.length} món khuyến mãi!`;
+			} else {
+				responseText = 'Hiện chưa có khuyến mãi nào. Bạn xem menu nhé!';
+			}
+			if (promoItems.length) {
+				richContent = buildMenuCarousel(promoItems.slice(0, 6));
+			}
+			suggestedActions = [
+				{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
+				{ type: 'quick_reply', label: '🍴 Gợi ý món', payload: 'gợi ý món' },
+			];
+
+		// ─── AI for other intents ───
+		} else if (hasAI) {
+			responseText = await generateAIResponse(
+				env.GEMINI_API_KEY, intent, message, context, menuItems, conversationHistory, env.AI
+			);
+			if (intent === 'greeting') {
+				suggestedActions = [
+					{ type: 'quick_reply', label: '📋 Xem menu', payload: 'xem menu' },
+					{ type: 'quick_reply', label: '🍴 Gợi ý món', payload: 'gợi ý món' },
+					{ type: 'quick_reply', label: '💰 Khuyến mãi', payload: 'có khuyến mãi gì' },
+				];
+			}
+		} else {
+			responseText = pickTemplate(intent);
 		}
-	} else {
+	} catch {
 		responseText = pickTemplate(intentResult.intent);
 	}
 
-	await addMessage(db, sessionId, 'assistant', responseText, { intent: intentResult.intent }, richContent);
+	await addMessage(db, sessionId, 'assistant', responseText);
 
 	return {
 		session_id: sessionId,
 		message: responseText,
 		rich_content: richContent,
 		suggested_actions: suggestedActions,
+		actions, // NEW: client-side actions
 		intent: intentResult.intent,
 		confidence: intentResult.confidence,
 	};
 }
+
+
+// ─── Action Handler ───
 
 export async function handleAction(
 	env: Env,
@@ -330,88 +444,17 @@ export async function handleAction(
 	sessionId: string,
 	storeId: string
 ): Promise<any> {
-	const db = env.DB;
-
-	if (actionType === 'add_to_cart') {
-		const itemId = actionPayload.item_id;
-		const quantity = actionPayload.quantity || 1;
-		if (!itemId) return { success: false, message: 'Item ID required' };
-
-		const item = await db.prepare(
-			'SELECT * FROM menu_items WHERE id = ? AND store_id = ?'
-		).bind(itemId, storeId).first() as any;
-		if (!item) return { success: false, message: 'Item not found' };
-
-		const now = new Date().toISOString();
-		const { results: promos } = await db.prepare(
-			'SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND start_date <= ? AND end_date >= ?'
-		).bind(storeId, now, now).all();
-
-		let finalPrice = item.price as number;
-		let discountInfo: any = null;
-
-		if (promos) {
-			for (const promo of promos as any[]) {
-				const applicable = promo.applicable_items ? JSON.parse(promo.applicable_items) : null;
-				const applies = !applicable || applicable.includes(itemId);
-				if (applies) {
-					const val = promo.discount_value as number;
-					if (promo.discount_type === 'percentage') {
-						const discountAmt = item.price * (val / 100);
-						finalPrice = item.price - discountAmt;
-						discountInfo = { original_price: item.price, discounted_price: finalPrice, discount_percent: val, promotion_name: promo.name };
-					} else if (promo.discount_type === 'fixed_amount') {
-						finalPrice = Math.max(0, item.price - val);
-						const pct = item.price > 0 ? (val / item.price) * 100 : 0;
-						discountInfo = { original_price: item.price, discounted_price: finalPrice, discount_percent: pct, promotion_name: promo.name };
-					}
-					break;
-				}
-			}
-		}
-
-		const total = finalPrice * quantity;
-		let responseText = `✅ Đã thêm ${quantity}x **${item.name}** vào giỏ!\n`;
-		if (discountInfo) {
-			const origTotal = discountInfo.original_price * quantity;
-			responseText += `💰 Giá gốc: ~~${Math.round(origTotal).toLocaleString()}đ~~\n`;
-			responseText += `🎉 Giá khuyến mãi: **${Math.round(total).toLocaleString()}đ** (giảm ${Math.round(discountInfo.discount_percent)}%)`;
-		} else {
-			responseText += `💰 Giá: ${Math.round(total).toLocaleString()}đ`;
-		}
-
-		const itemWithPrice: any = { ...item };
-		if (discountInfo) {
-			itemWithPrice.discounted_price = discountInfo.discounted_price;
-			itemWithPrice.original_price = discountInfo.original_price;
-			itemWithPrice.has_promotion = true;
-			itemWithPrice.promotion_label = `Giảm ${Math.round(discountInfo.discount_percent)}%`;
-		}
-
-		await addMessage(db, sessionId, 'assistant', responseText, { action: 'add_to_cart', item_id: itemId, discount_info: discountInfo });
-
-		return { success: true, message: responseText, item: itemWithPrice, quantity, discount_info: discountInfo };
-	}
-
-	if (actionType === 'remove_from_cart') {
-		if (!actionPayload.item_id) return { success: false, message: 'Item ID required' };
-		return { success: true, message: 'Đã xóa món khỏi giỏ hàng' };
-	}
-
-	if (actionType === 'view_detail') {
-		const itemId = actionPayload.item_id;
-		if (!itemId) return { success: false, message: 'Item ID required' };
-		const item = await db.prepare(
-			'SELECT * FROM menu_items WHERE id = ? AND store_id = ?'
-		).bind(itemId, storeId).first();
-		if (!item) return { success: false, message: 'Item not found' };
-		return { success: true, item };
-	}
-
-	return { success: false, message: 'Unknown action type' };
+	await addMessage(env.DB, sessionId, 'system', JSON.stringify({ action: actionType, payload: actionPayload }));
+	return { success: true, action_type: actionType };
 }
 
-export async function getConversationHistory(db: D1Database, sessionId: string, limit: number = 20): Promise<any> {
+// ─── Conversation History ───
+
+export async function getConversationHistory(
+	db: D1Database,
+	sessionId: string,
+	limit: number = 20
+): Promise<any> {
 	const messages = await getRecentMessages(db, sessionId, limit);
 	return { session_id: sessionId, messages };
 }

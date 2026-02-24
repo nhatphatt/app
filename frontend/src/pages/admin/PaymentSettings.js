@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLoading } from '../../contexts/LoadingContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -178,7 +179,7 @@ const BankSelect = ({ value, onChange, disabled }) => {
 };
 
 const PaymentSettings = () => {
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [saving, setSaving] = useState(false);
   const [methods, setMethods] = useState([]);
 
@@ -191,9 +192,10 @@ const PaymentSettings = () => {
   }, []);
 
   const fetchPaymentMethods = async () => {
+    showLoading('Đang tải dữ liệu...');
     try {
       const response = await api.get('/payment-methods');
-      setMethods(response.data);
+      setMethods(response.data || []);
 
       // Organize by type
       response.data.forEach(method => {
@@ -208,7 +210,7 @@ const PaymentSettings = () => {
     } catch (error) {
       toast.error('Không thể tải cấu hình thanh toán');
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -291,13 +293,6 @@ const PaymentSettings = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 space-y-6 animate-fade-in max-w-5xl">

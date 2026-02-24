@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLoading } from "../../contexts/LoadingContext";
 import { useNavigate } from "react-router-dom";
 import {
   Card,
@@ -32,7 +33,6 @@ import {
   Clock,
   CreditCard,
   Eye,
-  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/utils/api";
@@ -40,7 +40,7 @@ import api from "@/utils/api";
 const PaymentsManagement = () => {
   const navigate = useNavigate();
   const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -56,10 +56,10 @@ const PaymentsManagement = () => {
   }, []);
 
   const fetchPayments = async () => {
-    setLoading(true);
+    showLoading('Đang tải dữ liệu...');
     try {
       const response = await api.get("/payments");
-      setPayments(response.data);
+      setPayments(response.data || []);
 
       // Calculate stats
       const pending = response.data.filter((p) => p.status === "pending").length;
@@ -77,7 +77,7 @@ const PaymentsManagement = () => {
     } catch (error) {
       toast.error("Không thể tải danh sách thanh toán");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -273,13 +273,7 @@ const PaymentsManagement = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400" />
-                </TableCell>
-              </TableRow>
-            ) : filteredPayments.length === 0 ? (
+            {filteredPayments.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8">
                   Không có thanh toán nào

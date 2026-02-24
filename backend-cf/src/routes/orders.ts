@@ -24,10 +24,9 @@ app.get('/public/:store_slug/menu', async (c) => {
 	).bind(store.id).all();
 
 	// Apply active promotions
-	const now = new Date().toISOString();
 	const promotions = await env.DB.prepare(
-		'SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND start_date <= ? AND end_date >= ?'
-	).bind(store.id, now, now).all();
+		"SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND date(start_date) <= date('now') AND date(end_date) >= date('now')"
+	).bind(store.id).all();
 
 	const items = (menuItems.results || []).map((item: any) => {
 		if (!promotions.results || promotions.results.length === 0) {
@@ -218,7 +217,7 @@ app.get('/orders', authMiddleware, async (c) => {
 		items: typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []),
 		payment_method: paymentsMap[o.id] || null,
 	}));
-	return c.json(results);
+	return c.json(results ?? []);
 });
 
 // PUT /orders/:id/status
@@ -278,7 +277,7 @@ app.get('/tables', authMiddleware, async (c) => {
 		qr_code_url: t.qr_code_url || `${frontendUrl}/menu/${store?.slug || ''}?table=${t.id}`,
 	}));
 
-	return c.json(results);
+	return c.json(results ?? []);
 });
 
 // GET /tables/:id - Public table info (for QR code scanning)

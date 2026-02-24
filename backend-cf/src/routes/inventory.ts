@@ -105,7 +105,7 @@ app.put('/:item_id', authMiddleware, async (c) => {
 		const body = await c.req.json();
 
 		const existing = await c.env.DB.prepare('SELECT * FROM dishes_inventory WHERE id = ? AND store_id = ?').bind(itemId, user.store_id).first<any>();
-		if (!existing) return c.json({ detail: 'Inventory item not found' }, 404);
+		if (!existing) return c.json({ detail: 'Inventory item not found', debug: { itemId, storeId: user.store_id } }, 404);
 
 		const fields: string[] = [];
 		const values: any[] = [];
@@ -144,7 +144,7 @@ app.post('/:item_id/adjust', authMiddleware, async (c) => {
 		const body = await c.req.json();
 
 		const item = await c.env.DB.prepare('SELECT * FROM dishes_inventory WHERE id = ? AND store_id = ?').bind(itemId, user.store_id).first<any>();
-		if (!item) return c.json({ detail: 'Inventory item not found' }, 404);
+		if (!item) return c.json({ detail: 'Inventory item not found', debug: { itemId, storeId: user.store_id } }, 404);
 
 		const qtyBefore = item.quantity_in_stock;
 		let newQty: number;
@@ -197,10 +197,27 @@ app.get('/:item_id/history', authMiddleware, async (c) => {
 app.delete('/delete-all', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
-		await c.env.DB.prepare('DELETE FROM dishes_inventory WHERE store_id = ?').bind(user.store_id).run();
-		return c.json({ message: 'Đã xóa toàn bộ kho hàng' });
-	} catch (error) {
-		return c.json({ detail: 'Lỗi khi xóa kho hàng' }, 500);
+		const storeId = user.store_id;
+
+		// Get all inventory IDs for this store
+		const items = await c.env.DB.prepare('SELECT id FROM dishes_inventory WHERE store_id = ?').bind(storeId).all();
+		const ids = (items.results ?? []).map((r: any) => r.id);
+
+		if (ids.length > 0) {
+			// Delete history and inventory in batch, chunked to avoid query limits
+			const batchStatements = [];
+			for (const id of ids) {
+				batchStatements.push(c.env.DB.prepare('DELETE FROM inventory_history WHERE inventory_id = ?').bind(id));
+			}
+			for (const id of ids) {
+				batchStatements.push(c.env.DB.prepare('DELETE FROM dishes_inventory WHERE id = ?').bind(id));
+			}
+			await c.env.DB.batch(batchStatements);
+		}
+
+		return c.json({ message: `Đã xóa ${ids.length} món khỏi kho` });
+	} catch (error: any) {
+		return c.json({ detail: error.message || 'Lỗi khi xóa kho hàng' }, 500);
 	}
 });
 
@@ -208,8 +225,9 @@ app.delete('/delete-all', authMiddleware, async (c) => {
 app.delete('/:item_id', authMiddleware, async (c) => {
 	try {
 		const user = c.get('user');
+		await c.env.DB.prepare('DELETE FROM inventory_history WHERE inventory_id = ?').bind(c.req.param('item_id')).run();
 		const result = await c.env.DB.prepare('DELETE FROM dishes_inventory WHERE id = ? AND store_id = ?').bind(c.req.param('item_id'), user.store_id).run();
-		if (!result.meta.changes) return c.json({ detail: 'Inventory item not found' }, 404);
+		if (!result.meta.changes) return c.json({ detail: 'Inventory item not found', debug: { itemId: c.req.param('item_id'), storeId: user.store_id, meta: result.meta } }, 404);
 		return c.json({ message: 'Inventory item deleted successfully' });
 	} catch (e: any) {
 		return c.json({ detail: e.message }, 500);

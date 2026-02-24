@@ -14,10 +14,11 @@ import api from "@/utils/api";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { useLoading } from "../../contexts/LoadingContext";
 
 const OrdersManagement = () => {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
 
   useEffect(() => {
     fetchOrders();
@@ -29,11 +30,11 @@ const OrdersManagement = () => {
   const fetchOrders = async () => {
     try {
       const response = await api.get("/orders");
-      setOrders(response.data);
+      setOrders(response.data || []);
     } catch (error) {
       toast.error("Không thể tải danh sách đơn hàng");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -93,13 +94,6 @@ const OrdersManagement = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">

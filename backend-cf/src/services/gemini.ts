@@ -1,185 +1,179 @@
 import type { Env } from '../types';
 
-interface GeminiMessage {
+interface ConvMessage {
 	role: string;
 	content: string;
 }
 
-export async function callGemini(apiKey: string, prompt: string): Promise<string> {
-	const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
-	const res = await fetch(`${url}?key=${apiKey}`, {
-		method: 'POST',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({
-			contents: [{ parts: [{ text: prompt }] }],
-			generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-		}),
+// ─── AI Providers ───
+
+async function callWorkersAI(ai: any, system: string, prompt: string): Promise<string> {
+	const result = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+		messages: [
+			{ role: 'system', content: system },
+			{ role: 'user', content: prompt },
+		],
+		max_tokens: 512,
+		temperature: 0.5,
 	});
-
-	if (!res.ok) {
-		const err = await res.text();
-		throw new Error(`Gemini API error: ${res.status} ${err}`);
-	}
-
-	const data = (await res.json()) as any;
-	const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-	if (!text) throw new Error('Empty Gemini response');
+	const text = result?.response;
+	if (!text) throw new Error('Empty Workers AI response');
 	return text.trim();
 }
 
-export function buildSystemPrompt(intent: string, context: Record<string, any>, menuItems?: any[]): string {
-	let base = `Bạn là trợ lý AI thông minh của nhà hàng, tên là Minitake Bot.
-Nhiệm vụ của bạn là:
-- Tư vấn món ăn một cách chuyên nghiệp và thân thiện
-- Giúp khách hàng đặt món nhanh chóng
-- Trả lời các câu hỏi về menu, giá cả, khuyến mãi
-- Giao tiếp bằng tiếng Việt tự nhiên, thân thiện
+async function callGeminiAPI(apiKey: string, system: string, prompt: string): Promise<string> {
+	const models = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
+	const fullPrompt = system + '\n\n' + prompt;
 
-Phong cách giao tiếp:
-- Thân thiện, nhiệt tình nhưng không quá lải nhải
-- Dùng emoji vừa phải (😊 🍴 💰 🎉)
-- Câu ngắn gọn, dễ hiểu
-- Tập trung vào nhu cầu của khách
-
-⚠️ QUY TẮC QUAN TRỌNG:
-- CHỈ nhắc đến các món CÓ TRONG MENU được cung cấp
-- KHÔNG tự tạo ra tên món, không tưởng tượng ra món mới
-- Nếu không biết, hãy gợi ý khách xem menu hoặc hỏi cụ thể hơn`;
-
-	if (intent === 'ask_menu' && menuItems) {
-		const lines = menuItems.slice(0, 15).map((item: any) => {
-			let price = `${Math.round(item.price).toLocaleString()}đ`;
-			if (item.has_promotion && item.discounted_price) {
-				price = `~~${Math.round(item.price).toLocaleString()}đ~~ ${Math.round(item.discounted_price).toLocaleString()}đ 🎉`;
-			}
-			return `• ${item.name} - ${price}`;
+	for (const model of models) {
+		const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+		const res = await fetch(`${url}?key=${apiKey}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				contents: [{ parts: [{ text: fullPrompt }] }],
+				generationConfig: { temperature: 0.5, maxOutputTokens: 512 },
+			}),
 		});
-		base += `\n\nMenu hiện có (một số món nổi bật):\n${lines.join('\n')}`;
-		if (menuItems.length > 15) base += `\n...và ${menuItems.length - 15} món khác`;
-		base += '\n\nHãy giới thiệu menu một cách ngắn gọn và hấp dẫn, khuyến khích khách xem carousel để đặt món.';
-	} else if (intent === 'ask_recommendation') {
-		const recommended = context.recommended_items;
-		if (recommended && recommended.length) {
-			base += `\n\nCác món được gợi ý cho khách: ${recommended.join(', ')}`;
-			base += '\n\nHãy giới thiệu ngắn gọn các món này. Khách sẽ thấy chi tiết món trong carousel bên dưới.';
-		} else if (menuItems) {
-			const names = menuItems.slice(0, 20).map((i: any) => i.name);
-			base += `\n\nDanh sách món có sẵn: ${names.join(', ')}`;
-			base += '\n\n⚠️ QUAN TRỌNG: Chỉ gợi ý các món có trong danh sách trên, KHÔNG tự tạo món mới.';
-		}
-		const cart = context.cart_items;
-		if (cart && cart.length && !recommended) {
-			const summary = cart.map((i: any) => `${i.name} x${i.quantity}`).join(', ');
-			base += `\n\nKhách hàng đã có trong giỏ: ${summary}\nHãy gợi ý món bổ sung phù hợp từ danh sách menu.`;
-		} else if (!cart?.length && !recommended) {
-			base += '\n\nGiỏ hàng trống. Hãy gợi ý món phù hợp từ danh sách menu.';
-		}
-	} else if (intent === 'ask_promotion') {
-		const promoItems = context.promotion_items;
-		const promoDetails = context.promotion_details;
-		if (promoItems && promoDetails) {
-			base += `\n\n🎉 Các món đang khuyến mãi:\n${promoDetails.map((d: string) => `• ${d}`).join('\n')}`;
-			base += '\n\nHãy giới thiệu ngắn gọn các món khuyến mãi này một cách hấp dẫn.';
-		} else if (menuItems) {
-			const promos = menuItems.filter((i: any) => i.has_promotion);
-			if (promos.length) {
-				const summary = promos.slice(0, 5).map((i: any) =>
-					`- ${i.name}: ${Math.round(i.discounted_price || i.price)}đ (giảm từ ${Math.round(i.price)}đ)`
-				).join('\n');
-				base += `\n\nMón đang giảm giá:\n${summary}`;
-			} else {
-				base += '\n\nHiện tại chưa có món nào khuyến mãi. Hãy khéo léo đề xuất khách xem menu hoặc gợi ý món.';
-			}
-		}
-	} else if (intent === 'view_cart') {
-		const cart = context.cart_items;
-		if (cart && cart.length) {
-			const total = cart.reduce((s: number, i: any) => s + (i.price || 0) * (i.quantity || 1), 0);
-			base += `\n\nGiỏ hàng hiện tại có ${cart.length} món, tổng ${Math.round(total).toLocaleString()}đ`;
-		}
-	} else if (intent === 'ask_item_info') {
-		base += '\n\nHãy cung cấp thông tin chi tiết về món ăn khách hỏi.';
-	} else if (intent === 'payment') {
-		base += '\n\nHướng dẫn khách thanh toán qua giỏ hàng, không xử lý thanh toán trực tiếp trong chat.';
+		if (res.status === 429) continue;
+		if (!res.ok) throw new Error(`Gemini ${model}: ${res.status}`);
+		const data = (await res.json()) as any;
+		const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+		if (!text) throw new Error('Empty Gemini response');
+		return text.trim();
 	}
-
-	return base;
+	throw new Error('All Gemini models rate limited');
 }
+
+async function callAI(apiKey: string, ai: any | undefined, system: string, prompt: string): Promise<string> {
+	if (ai) {
+		try { return await callWorkersAI(ai, system, prompt); } catch {}
+	}
+	if (apiKey) {
+		return await callGeminiAPI(apiKey, system, prompt);
+	}
+	throw new Error('No AI provider');
+}
+
+// ─── Menu Formatting ───
+
+function formatMenuForPrompt(menuItems: any[]): string {
+	if (!menuItems?.length) return 'Menu hiện đang trống.';
+	return menuItems.map(i => {
+		let price = `${Math.round(i.price).toLocaleString()}đ`;
+		if (i.has_promotion && i.discounted_price) {
+			price = `${Math.round(i.discounted_price).toLocaleString()}đ (giảm từ ${Math.round(i.price).toLocaleString()}đ)`;
+		}
+		const promo = i.has_promotion && i.promotion_label ? ` [KM: ${i.promotion_label}]` : '';
+		return `- ${i.name}: ${price}${promo}`;
+	}).join('\n');
+}
+
+// ─── System Prompt ───
+
+function buildSystemPrompt(menuItems: any[]): string {
+	const menuText = formatMenuForPrompt(menuItems);
+	return `Bạn là Minitake Bot — trợ lý đặt món AI của quán.
+
+═══ MENU CỦA QUÁN (ĐÂY LÀ TOÀN BỘ MENU) ═══
+${menuText}
+═══ HẾT MENU ═══
+
+QUY TẮC BẮT BUỘC:
+1. CHỈ ĐƯỢC nhắc đến các món CÓ TRONG MENU ở trên. TUYỆT ĐỐI KHÔNG được tự bịa, tưởng tượng, hay nhắc bất kỳ món nào không có trong danh sách. Nếu menu trống, nói "Quán hiện chưa có món nào trong menu".
+2. Khi khách hỏi gợi ý → chỉ gợi ý từ menu trên. Nếu khách muốn món không có → nói "Xin lỗi, quán hiện chưa có món đó" và gợi ý món tương tự từ menu.
+3. Khi khách muốn đặt món → xác nhận tên món chính xác từ menu, hỏi số lượng, rồi nói "Mình đã thêm [món] vào giỏ hàng!"
+4. Khi khách muốn thanh toán → xác nhận giỏ hàng và hướng dẫn nhấn nút "Thanh toán" bên dưới.
+5. Trả lời ngắn gọn (tối đa 3-4 câu). Dùng emoji vừa phải.
+6. Giao tiếp tiếng Việt tự nhiên, thân thiện.
+7. Khi liệt kê món, LUÔN kèm giá.
+8. Nếu có món khuyến mãi, ưu tiên gợi ý món đó.`;
+}
+
+// ─── Public API ───
 
 export async function generateAIResponse(
 	apiKey: string,
 	intent: string,
-	message: string,
+	userMessage: string,
 	context: Record<string, any>,
-	menuItems?: any[],
-	conversationHistory?: any[]
+	menuItems: any[],
+	conversationHistory: ConvMessage[],
+	ai?: any
 ): Promise<string> {
-	const systemPrompt = buildSystemPrompt(intent, context, menuItems);
+	const system = buildSystemPrompt(menuItems);
 
-	let convContext = '';
-	if (conversationHistory && conversationHistory.length) {
-		convContext = '\n\nLịch sử hội thoại gần đây:\n';
-		for (const msg of conversationHistory.slice(-5)) {
-			const role = msg.role === 'user' ? 'Khách hàng' : 'Trợ lý';
-			convContext += `${role}: ${msg.content || ''}\n`;
-		}
+	let userPrompt = '';
+
+	if (conversationHistory?.length) {
+		const recent = conversationHistory.slice(-6);
+		userPrompt += recent.map(m => `${m.role === 'user' ? 'Khách' : 'Bot'}: ${m.content}`).join('\n') + '\n\n';
 	}
 
-	const fullPrompt = `${systemPrompt}${convContext}
+	if (context.cart_items?.length) {
+		const cartSummary = context.cart_items.map((i: any) => `${i.name} x${i.quantity}`).join(', ');
+		userPrompt += `[Giỏ hàng hiện tại: ${cartSummary}]\n`;
+	} else {
+		userPrompt += '[Giỏ hàng trống]\n';
+	}
 
-Khách hàng hiện tại hỏi: "${message}"
+	if (context.recommended_items?.length) {
+		userPrompt += `[Gợi ý cho khách: ${context.recommended_items.join(', ')}]\n`;
+	}
 
-Hãy trả lời một cách tự nhiên, thân thiện và hữu ích. Giữ câu trả lời ngắn gọn (2-4 câu).
+	userPrompt += `Khách: ${userMessage}\nBot:`;
 
-Lưu ý: Nếu gợi ý món, hãy nhắc TÊN MÓN CỤ THỂ từ menu. Khách sẽ thấy các món được gợi ý trong carousel bên dưới.`;
-
-	return callGemini(apiKey, fullPrompt);
+	return await callAI(apiKey, ai, system, userPrompt);
 }
 
 export async function generateRecommendationIds(
 	apiKey: string,
 	context: Record<string, any>,
 	menuItems: any[],
-	limit: number = 3
+	count: number = 3,
+	ai?: any
 ): Promise<string[]> {
-	const menuJson = JSON.stringify(menuItems.map(i => ({
-		id: i.id, name: i.name, price: i.price,
-		description: i.description || '',
-		category_id: i.category_id,
-		has_promotion: i.has_promotion || false,
-		discounted_price: i.discounted_price,
-	})));
+	const itemList = menuItems.map(i => `${i.id}|${i.name}|${Math.round(i.price)}đ${i.has_promotion ? '|KM' : ''}`).join('\n');
+	const cartInfo = context.cart_items?.length
+		? `Khách đã có: ${context.cart_items.map((i: any) => i.name).join(', ')}. Gợi ý món bổ sung.`
+		: 'Giỏ hàng trống.';
 
-	const cartItems = context.cart_items || [];
-	const cartInfo = JSON.stringify(cartItems.map((i: any) => ({ name: i.name, quantity: i.quantity })));
+	const system = `Bạn là hệ thống gợi ý món. CHỈ trả về ${count} ID món, mỗi dòng 1 ID. KHÔNG giải thích.`;
+	const prompt = `Menu:\n${itemList}\n\n${cartInfo}\nThời điểm: ${context.time_of_day || 'không rõ'}`;
 
-	const prompt = `Bạn là trợ lý AI của nhà hàng. Hãy gợi ý ${limit} món ăn phù hợp nhất cho khách hàng.
+	const response = await callAI(apiKey, ai, system, prompt);
+	const ids = response.split('\n').map(l => l.trim()).filter(l => menuItems.some(i => i.id === l));
+	return ids.slice(0, count);
+}
 
-Menu hiện có:
-${menuJson}
+export async function matchMenuItems(
+	apiKey: string,
+	userMessage: string,
+	menuItems: any[],
+	ai?: any
+): Promise<{ id: string; name: string; quantity: number }[]> {
+	const nameList = menuItems.map(i => i.name).join(', ');
+	const system = 'Bạn là parser đặt món. Trích xuất tên món và số lượng từ tin nhắn khách. CHỈ trả về format: TÊN_MÓN|SỐ_LƯỢNG (mỗi dòng 1 món, tên món phải CHÍNH XÁC như trong menu). Nếu không rõ số lượng thì mặc định 1. Nếu không tìm thấy món nào thì trả về NONE.';
+	const prompt = `Menu: ${nameList}\n\nKhách nói: "${userMessage}"`;
 
-Giỏ hàng hiện tại:
-${cartInfo}
+	const response = await callAI(apiKey, ai, system, prompt);
+	if (response.includes('NONE')) return [];
 
-Hãy trả về JSON array chứa đúng ${limit} item IDs được gợi ý, ưu tiên:
-1. Món có khuyến mãi (has_promotion=true)
-2. Món bổ sung cho giỏ hàng (combo tốt, đa dạng)
-3. Món phổ biến
-
-Chỉ trả về JSON array của item IDs, ví dụ: ["id1", "id2", "id3"]`;
-
-	try {
-		let responseText = await callGemini(apiKey, prompt);
-		if (responseText.includes('```json')) {
-			responseText = responseText.split('```json')[1].split('```')[0].trim();
-		} else if (responseText.includes('```')) {
-			responseText = responseText.split('```')[1].split('```')[0].trim();
+	const results: { id: string; name: string; quantity: number }[] = [];
+	for (const line of response.split('\n')) {
+		const parts = line.trim().split('|');
+		if (parts.length >= 2) {
+			const name = parts[0].trim();
+			// Fuzzy match: exact or includes
+			const item = menuItems.find(i =>
+				i.name.toLowerCase() === name.toLowerCase() ||
+				i.name.toLowerCase().includes(name.toLowerCase()) ||
+				name.toLowerCase().includes(i.name.toLowerCase())
+			);
+			if (item && !results.find(r => r.id === item.id)) {
+				results.push({ id: item.id, name: item.name, quantity: parseInt(parts[1]) || 1 });
+			}
 		}
-		return JSON.parse(responseText);
-	} catch {
-		// Fallback: promo items first
-		const promo = menuItems.filter(i => i.has_promotion).map(i => i.id);
-		const other = menuItems.filter(i => !i.has_promotion).map(i => i.id);
-		return [...promo, ...other].slice(0, limit);
 	}
+	return results;
 }

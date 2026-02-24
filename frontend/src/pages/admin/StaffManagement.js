@@ -48,10 +48,14 @@ import {
 } from '../../components/ui/select';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import api from '../../utils/api';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { useLoading } from '../../contexts/LoadingContext';
+import { toast } from 'sonner';
 
 const StaffManagement = () => {
   const [activeTab, setActiveTab] = useState('employees');
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'danger' });
 
   // Employees state
   const [employees, setEmployees] = useState([]);
@@ -127,13 +131,13 @@ const StaffManagement = () => {
 
   const fetchEmployees = async () => {
     try {
-      setLoading(true);
+      showLoading('Đang tải dữ liệu...');
       const response = await api.get('/employees');
-      setEmployees(response.data);
+      setEmployees(response.data || []);
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -167,19 +171,27 @@ const StaffManagement = () => {
       resetEmployeeForm();
       fetchEmployees();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi lưu nhân viên');
+      toast.error(error.response?.data?.detail || 'Lỗi khi lưu nhân viên');
     }
   };
 
-  const handleDeleteEmployee = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) return;
-
-    try {
-      await api.delete(`/employees/${id}`);
-      fetchEmployees();
-    } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi xóa nhân viên');
-    }
+  const handleDeleteEmployee = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa nhân viên',
+      description: 'Bạn có chắc chắn muốn xóa nhân viên này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/employees/${id}`);
+          fetchEmployees();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          toast.error(error.response?.data?.detail || 'Lỗi khi xóa nhân viên');
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   const openEmployeeDialog = (employee = null) => {
@@ -218,7 +230,7 @@ const StaffManagement = () => {
   const fetchShifts = async () => {
     try {
       const response = await api.get('/shifts');
-      setShifts(response.data);
+      setShifts(response.data || []);
     } catch (error) {
       console.error('Error fetching shifts:', error);
     }
@@ -246,7 +258,7 @@ const StaffManagement = () => {
       resetShiftForm();
       fetchShifts();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi lưu ca làm việc');
+      toast.error(error.response?.data?.detail || 'Lỗi khi lưu ca làm việc');
     }
   };
 
@@ -263,19 +275,27 @@ const StaffManagement = () => {
       });
       fetchShifts();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi tạo ca làm việc hàng loạt');
+      toast.error(error.response?.data?.detail || 'Lỗi khi tạo ca làm việc hàng loạt');
     }
   };
 
-  const handleDeleteShift = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa ca làm việc này?')) return;
-
-    try {
-      await api.delete(`/shifts/${id}`);
-      fetchShifts();
-    } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi xóa ca làm việc');
-    }
+  const handleDeleteShift = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa ca làm việc',
+      description: 'Bạn có chắc chắn muốn xóa ca làm việc này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/shifts/${id}`);
+          fetchShifts();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+      toast.error(error.response?.data?.detail || 'Lỗi khi xóa ca làm việc');
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   const openShiftDialog = (shift = null) => {
@@ -310,7 +330,7 @@ const StaffManagement = () => {
   const fetchAttendance = async () => {
     try {
       const response = await api.get('/attendance');
-      setAttendanceLogs(response.data);
+      setAttendanceLogs(response.data || []);
     } catch (error) {
       console.error('Error fetching attendance:', error);
     }
@@ -344,7 +364,7 @@ const StaffManagement = () => {
       fetchAttendance();
       fetchActiveAttendance();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi check-in');
+      toast.error(error.response?.data?.detail || 'Lỗi khi check-in');
     }
   };
 
@@ -356,7 +376,7 @@ const StaffManagement = () => {
       fetchAttendance();
       fetchActiveAttendance();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi check-out');
+      toast.error(error.response?.data?.detail || 'Lỗi khi check-out');
     }
   };
 
@@ -389,13 +409,6 @@ const StaffManagement = () => {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -1045,6 +1058,14 @@ const StaffManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+      />
     </div>
   );
 };

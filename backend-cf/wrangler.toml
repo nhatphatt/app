@@ -11,3 +11,6 @@ FRONTEND_URL = "https://minitake-app.pages.dev"
 binding = "DB"
 database_name = "minitake"
 database_id = "26444b6c-a0c0-48f4-962f-b0634934c077"
+
+[ai]
+binding = "AI"

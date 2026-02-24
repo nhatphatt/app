@@ -23,12 +23,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Edit, Trash2, Loader2, Upload, FileJson } from "lucide-react";
 import api from "@/utils/api";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useLoading } from "@/contexts/LoadingContext";
 
 const MenuManagement = () => {
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'danger' });
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -48,7 +51,7 @@ const MenuManagement = () => {
   });
 
   const [bulkImportDialogOpen, setBulkImportDialogOpen] = useState(false);
-  const [jsonInput, setJsonInput] = useState("{\n  \"categories\": [\n    {\n      \"name\": \"Cà Phê\",\n      \"display_order\": 1\n    },\n    {\n      \"name\": \"Trà\",\n      \"display_order\": 2\n    },\n    {\n      \"name\": \"Sinh Tố & Nước Ép\",\n      \"display_order\": 3\n    },\n    {\n      \"name\": \"Bánh Ngọt\",\n      \"display_order\": 4\n    },\n    {\n      \"name\": \"Món Ăn Nhẹ\",\n      \"display_order\": 5\n    }\n  ],\n  \"items\": [\n    {\n      \"name\": \"Cà Phê Sữa Đá\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 29000,\n      \"description\": \"Cà phê phin truyền thống pha sữa đặc, đá viên\",\n      \"image_url\": \"https://images.unsplash.com/photo-1514432324607-a09d9b4aefda?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cà Phê Đen Đá\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 25000,\n      \"description\": \"Cà phê đen nguyên chất, đậm đà\",\n      \"image_url\": \"https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bạc Xỉu\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 32000,\n      \"description\": \"Cà phê nhẹ với nhiều sữa, thơm béo\",\n      \"image_url\": \"https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cappuccino\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 45000,\n      \"description\": \"Espresso với foam sữa mịn, rắc bột ca cao\",\n      \"image_url\": \"https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Latte\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 49000,\n      \"description\": \"Espresso với sữa tươi hấp nóng, latte art\",\n      \"image_url\": \"https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Đào Cam Sả\",\n      \"category_name\": \"Trà\",\n      \"price\": 39000,\n      \"description\": \"Trà đào thơm mát với cam tươi và sả\",\n      \"image_url\": \"https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Vải\",\n      \"category_name\": \"Trà\",\n      \"price\": 35000,\n      \"description\": \"Trà xanh kết hợp vải tươi thanh mát\",\n      \"image_url\": \"https://images.unsplash.com/photo-1544025162-d76694265947?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Sữa Trân Châu\",\n      \"category_name\": \"Trà\",\n      \"price\": 42000,\n      \"description\": \"Trà sữa đậm đà với trân châu đen dẻo\",\n      \"image_url\": \"https://images.unsplash.com/photo-1558857563-b371033873b8?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Oolong Sen\",\n      \"category_name\": \"Trà\",\n      \"price\": 38000,\n      \"description\": \"Trà oolong thơm hương sen thanh nhã\",\n      \"image_url\": \"https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sinh Tố Bơ\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 45000,\n      \"description\": \"Bơ tươi xay mịn với sữa đặc\",\n      \"image_url\": \"https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sinh Tố Xoài\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 42000,\n      \"description\": \"Xoài chín ngọt xay cùng đá và sữa\",\n      \"image_url\": \"https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Nước Ép Cam\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 35000,\n      \"description\": \"Cam tươi vắt nguyên chất, giàu vitamin C\",\n      \"image_url\": \"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bánh Croissant Bơ\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 35000,\n      \"description\": \"Bánh sừng bò vỏ giòn xốp, thơm bơ\",\n      \"image_url\": \"https://images.unsplash.com/photo-1555507036-ab1f4038024a?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bánh Tiramisu\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 55000,\n      \"description\": \"Bánh kem tiramisu kiểu Ý, vị cà phê đậm\",\n      \"image_url\": \"https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cheesecake\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 52000,\n      \"description\": \"Bánh phô mai mịn, sốt berry\",\n      \"image_url\": \"https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Khoai Tây Chiên\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 39000,\n      \"description\": \"Khoai tây chiên giòn vàng, sốt tương ớt\",\n      \"image_url\": \"https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sandwich Gà\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 45000,\n      \"description\": \"Bánh mì sandwich nhân gà nướng, rau tươi\",\n      \"image_url\": \"https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Mì Ý Sốt Bò Bằm\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 55000,\n      \"description\": \"Mì spaghetti sốt cà chua bò bằm, phô mai\",\n      \"image_url\": \"https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400\",\n      \"is_available\": true\n    }\n  ]\n}");
+  const [jsonInput, setJsonInput] = useState("{\n  \"categories\": [\n    {\n      \"name\": \"Cà Phê\",\n      \"display_order\": 1\n    },\n    {\n      \"name\": \"Trà\",\n      \"display_order\": 2\n    },\n    {\n      \"name\": \"Sinh Tố & Nước Ép\",\n      \"display_order\": 3\n    },\n    {\n      \"name\": \"Bánh Ngọt\",\n      \"display_order\": 4\n    },\n    {\n      \"name\": \"Món Ăn Nhẹ\",\n      \"display_order\": 5\n    }\n  ],\n  \"items\": [\n    {\n      \"name\": \"Cà Phê Sữa Đá\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 29000,\n      \"description\": \"Cà phê phin truyền thống pha sữa đặc, đá viên\",\n      \"image_url\": \"https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cà Phê Đen Đá\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 25000,\n      \"description\": \"Cà phê đen nguyên chất, đậm đà\",\n      \"image_url\": \"https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bạc Xỉu\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 32000,\n      \"description\": \"Cà phê nhẹ với nhiều sữa, thơm béo\",\n      \"image_url\": \"https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cappuccino\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 45000,\n      \"description\": \"Espresso với foam sữa mịn, rắc bột ca cao\",\n      \"image_url\": \"https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Latte\",\n      \"category_name\": \"Cà Phê\",\n      \"price\": 49000,\n      \"description\": \"Espresso với sữa tươi hấp nóng, latte art\",\n      \"image_url\": \"https://images.unsplash.com/photo-1561882468-9110e03e0f78?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Đào Cam Sả\",\n      \"category_name\": \"Trà\",\n      \"price\": 39000,\n      \"description\": \"Trà đào thơm mát với cam tươi và sả\",\n      \"image_url\": \"https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Vải\",\n      \"category_name\": \"Trà\",\n      \"price\": 35000,\n      \"description\": \"Trà xanh kết hợp vải tươi thanh mát\",\n      \"image_url\": \"https://images.unsplash.com/photo-1544025162-d76694265947?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Sữa Trân Châu\",\n      \"category_name\": \"Trà\",\n      \"price\": 42000,\n      \"description\": \"Trà sữa đậm đà với trân châu đen dẻo\",\n      \"image_url\": \"https://images.unsplash.com/photo-1558857563-b371033873b8?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Trà Oolong Sen\",\n      \"category_name\": \"Trà\",\n      \"price\": 38000,\n      \"description\": \"Trà oolong thơm hương sen thanh nhã\",\n      \"image_url\": \"https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sinh Tố Bơ\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 45000,\n      \"description\": \"Bơ tươi xay mịn với sữa đặc\",\n      \"image_url\": \"https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sinh Tố Xoài\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 42000,\n      \"description\": \"Xoài chín ngọt xay cùng đá và sữa\",\n      \"image_url\": \"https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Nước Ép Cam\",\n      \"category_name\": \"Sinh Tố & Nước Ép\",\n      \"price\": 35000,\n      \"description\": \"Cam tươi vắt nguyên chất, giàu vitamin C\",\n      \"image_url\": \"https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bánh Croissant Bơ\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 35000,\n      \"description\": \"Bánh sừng bò vỏ giòn xốp, thơm bơ\",\n      \"image_url\": \"https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Bánh Tiramisu\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 55000,\n      \"description\": \"Bánh kem tiramisu kiểu Ý, vị cà phê đậm\",\n      \"image_url\": \"https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Cheesecake\",\n      \"category_name\": \"Bánh Ngọt\",\n      \"price\": 52000,\n      \"description\": \"Bánh phô mai mịn, sốt berry\",\n      \"image_url\": \"https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Khoai Tây Chiên\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 39000,\n      \"description\": \"Khoai tây chiên giòn vàng, sốt tương ớt\",\n      \"image_url\": \"https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Sandwich Gà\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 45000,\n      \"description\": \"Bánh mì sandwich nhân gà nướng, rau tươi\",\n      \"image_url\": \"https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=400\",\n      \"is_available\": true\n    },\n    {\n      \"name\": \"Mì Ý Sốt Bò Bằm\",\n      \"category_name\": \"Món Ăn Nhẹ\",\n      \"price\": 55000,\n      \"description\": \"Mì spaghetti sốt cà chua bò bằm, phô mai\",\n      \"image_url\": \"https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=400\",\n      \"is_available\": true\n    }\n  ]\n}");
   const [importLoading, setImportLoading] = useState(false);
 
   useEffect(() => {
@@ -57,18 +60,19 @@ const MenuManagement = () => {
 
   const fetchData = async () => {
     try {
+      showLoading('Đang tải dữ liệu...');
       const [categoriesRes, itemsRes, inventoryRes] = await Promise.all([
         api.get("/categories"),
         api.get("/menu-items"),
         api.get("/inventory-dishes").catch(() => ({ data: [] })), // Don't fail if inventory doesn't exist
       ]);
-      setCategories(categoriesRes.data);
-      setMenuItems(itemsRes.data);
-      setInventory(inventoryRes.data);
+      setCategories(categoriesRes.data || []);
+      setMenuItems(itemsRes.data || []);
+      setInventory(inventoryRes.data || []);
     } catch (error) {
       toast.error("Không thể tải dữ liệu");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -99,15 +103,24 @@ const MenuManagement = () => {
     }
   };
 
-  const handleDeleteCategory = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa danh mục này?")) return;
-    try {
-      await api.delete(`/categories/${id}`);
-      toast.success("Xóa danh mục thành công");
-      fetchData();
-    } catch (error) {
-      toast.error("Không thể xóa danh mục");
-    }
+  const handleDeleteCategory = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa danh mục',
+      description: 'Bạn có chắc chắn muốn xóa danh mục này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/categories/${id}`);
+          toast.success("Xóa danh mục thành công");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+          fetchData();
+        } catch (error) {
+          toast.error("Không thể xóa danh mục");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   // Menu item handlers
@@ -141,50 +154,56 @@ const MenuManagement = () => {
     }
   };
 
-  const handleDeleteItem = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa món này?")) return;
-    try {
-      await api.delete(`/menu-items/${id}`);
-      toast.success("Xóa món ăn thành công");
-      fetchData();
-    } catch (error) {
-      toast.error("Không thể xóa món ăn");
-    }
+  const handleDeleteItem = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa món ăn',
+      description: 'Bạn có chắc chắn muốn xóa món này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/menu-items/${id}`);
+          toast.success("Xóa món ăn thành công");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+          fetchData();
+        } catch (error) {
+          toast.error("Không thể xóa món ăn");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
-  const handleDeleteAllItems = async () => {
+  const handleDeleteAllItems = () => {
     const itemCount = menuItems.length;
     if (itemCount === 0) {
       toast.error("Không có món ăn nào để xóa");
       return;
     }
 
-    const confirmed = window.confirm(
-      `⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa TẤT CẢ ${itemCount} món ăn?\n\nHành động này KHÔNG THỂ HOÀN TÁC!`,
-    );
-
-    if (!confirmed) return;
-
-    // Double confirmation for safety
-    const doubleConfirm = window.confirm(
-      `Xác nhận lần cuối: Xóa ${itemCount} món ăn?\n\nNhấn OK để tiếp tục xóa.`,
-    );
-
-    if (!doubleConfirm) return;
-
-    try {
-      setLoading(true);
-      const response = await api.delete("/menu-items");
-      toast.success(`Đã xóa ${response.data.deleted_count} món ăn thành công`);
-      fetchData();
-    } catch (error) {
-      toast.error(
-        "Không thể xóa món ăn: " +
-          (error.response?.data?.detail || error.message),
-      );
-    } finally {
-      setLoading(false);
-    }
+    setConfirmDialog({
+      open: true,
+      title: '⚠️ Xóa TẤT CẢ món ăn',
+      description: `Bạn có chắc chắn muốn xóa TẤT CẢ ${itemCount} món ăn? Hành động này KHÔNG THỂ HOÀN TÁC và sẽ xóa vĩnh viễn toàn bộ dữ liệu món ăn!`,
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          showLoading('Đang xóa tất cả món ăn...');
+          const response = await api.delete("/menu-items");
+          toast.success(`Đã xóa ${response.data.deleted_count} món ăn thành công`);
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+          fetchData();
+        } catch (error) {
+          toast.error(
+            "Không thể xóa món ăn: " +
+              (error.response?.data?.detail || error.message),
+          );
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } finally {
+          hideLoading();
+        }
+      }
+    });
   };
 
   const handleBulkImport = async () => {
@@ -262,7 +281,7 @@ const MenuManagement = () => {
           { name: "Món Ăn Nhẹ", display_order: 5 },
         ],
         items: [
-          { name: "Cà Phê Sữa Đá", category_name: "Cà Phê", price: 29000, description: "Cà phê phin truyền thống pha sữa đặc, đá viên", image_url: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefda?w=400", is_available: true },
+          { name: "Cà Phê Sữa Đá", category_name: "Cà Phê", price: 29000, description: "Cà phê phin truyền thống pha sữa đặc, đá viên", image_url: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400", is_available: true },
           { name: "Cà Phê Đen Đá", category_name: "Cà Phê", price: 25000, description: "Cà phê đen nguyên chất, đậm đà", image_url: "https://images.unsplash.com/photo-1510591509098-f4fdc6d0ff04?w=400", is_available: true },
           { name: "Bạc Xỉu", category_name: "Cà Phê", price: 32000, description: "Cà phê nhẹ với nhiều sữa, thơm béo", image_url: "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400", is_available: true },
           { name: "Cappuccino", category_name: "Cà Phê", price: 45000, description: "Espresso với foam sữa mịn, rắc bột ca cao", image_url: "https://images.unsplash.com/photo-1572490122747-3968b75cc699?w=400", is_available: true },
@@ -274,7 +293,7 @@ const MenuManagement = () => {
           { name: "Sinh Tố Bơ", category_name: "Sinh Tố & Nước Ép", price: 45000, description: "Bơ tươi xay mịn với sữa đặc", image_url: "https://images.unsplash.com/photo-1638176066666-ffb2f013c7dd?w=400", is_available: true },
           { name: "Sinh Tố Xoài", category_name: "Sinh Tố & Nước Ép", price: 42000, description: "Xoài chín ngọt xay cùng đá và sữa", image_url: "https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?w=400", is_available: true },
           { name: "Nước Ép Cam", category_name: "Sinh Tố & Nước Ép", price: 35000, description: "Cam tươi vắt nguyên chất, giàu vitamin C", image_url: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=400", is_available: true },
-          { name: "Bánh Croissant Bơ", category_name: "Bánh Ngọt", price: 35000, description: "Bánh sừng bò vỏ giòn xốp, thơm bơ", image_url: "https://images.unsplash.com/photo-1555507036-ab1f4038024a?w=400", is_available: true },
+          { name: "Bánh Croissant Bơ", category_name: "Bánh Ngọt", price: 35000, description: "Bánh sừng bò vỏ giòn xốp, thơm bơ", image_url: "https://images.unsplash.com/photo-1530610476181-d83430b64dcd?w=400", is_available: true },
           { name: "Bánh Tiramisu", category_name: "Bánh Ngọt", price: 55000, description: "Bánh kem tiramisu kiểu Ý, vị cà phê đậm", image_url: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=400", is_available: true },
           { name: "Cheesecake", category_name: "Bánh Ngọt", price: 52000, description: "Bánh phô mai mịn, sốt berry", image_url: "https://images.unsplash.com/photo-1524351199678-941a58a3df50?w=400", is_available: true },
           { name: "Khoai Tây Chiên", category_name: "Món Ăn Nhẹ", price: 39000, description: "Khoai tây chiên giòn vàng, sốt tương ớt", image_url: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400", is_available: true },
@@ -287,13 +306,6 @@ const MenuManagement = () => {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">
@@ -425,7 +437,7 @@ const MenuManagement = () => {
             <Button
               variant="destructive"
               onClick={handleDeleteAllItems}
-              disabled={menuItems.length === 0 || loading}
+              disabled={menuItems.length === 0}
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Xóa tất cả món ({menuItems.length})
@@ -785,6 +797,14 @@ const MenuManagement = () => {
           </div>
         </TabsContent>
       </Tabs>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+      />
     </div>
   );
 };

@@ -68,19 +68,57 @@ app.post('/login', async (c) => {
 // GET /dashboard
 app.get('/dashboard', superAdminAuth, async (c) => {
 	try {
-		const storeCount = await c.env.DB.prepare('SELECT COUNT(*) as cnt FROM stores').first<{ cnt: number }>();
-		const userCount = await c.env.DB.prepare('SELECT COUNT(*) as cnt FROM users').first<{ cnt: number }>();
-		const activeSubCount = await c.env.DB.prepare("SELECT COUNT(*) as cnt FROM subscriptions WHERE status IN ('active','trial')").first<{ cnt: number }>();
-		const revenueRow = await c.env.DB.prepare("SELECT COALESCE(SUM(amount),0) as total FROM subscription_payments WHERE status = 'paid'").first<{ total: number }>();
+		const db = c.env.DB;
+
+		const [
+			storeCount, userCount, activeSubCount, revenueRow,
+			proStores, starterStores,
+			orderCount, todayOrders, todayRevenue,
+			recentStores, topStores,
+			menuItemCount,
+		] = await Promise.all([
+			db.prepare('SELECT COUNT(*) as cnt FROM stores').first<{ cnt: number }>(),
+			db.prepare('SELECT COUNT(*) as cnt FROM users').first<{ cnt: number }>(),
+			db.prepare("SELECT COUNT(*) as cnt FROM subscriptions WHERE status IN ('active','trial')").first<{ cnt: number }>(),
+			db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM subscription_payments WHERE status = 'paid'").first<{ total: number }>(),
+			db.prepare("SELECT COUNT(*) as cnt FROM stores WHERE plan_id = 'pro'").first<{ cnt: number }>(),
+			db.prepare("SELECT COUNT(*) as cnt FROM stores WHERE plan_id = 'starter' OR plan_id IS NULL").first<{ cnt: number }>(),
+			db.prepare('SELECT COUNT(*) as cnt FROM orders').first<{ cnt: number }>(),
+			db.prepare("SELECT COUNT(*) as cnt FROM orders WHERE date(created_at) = date('now')").first<{ cnt: number }>(),
+			db.prepare("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE date(created_at) = date('now')").first<{ total: number }>(),
+			db.prepare("SELECT s.id, s.name, s.slug, s.plan_id, s.created_at, u.email as owner_email, (SELECT COUNT(*) FROM menu_items WHERE store_id = s.id) as menu_count, (SELECT COUNT(*) FROM orders WHERE store_id = s.id) as order_count FROM stores s LEFT JOIN users u ON u.store_id = s.id ORDER BY s.created_at DESC LIMIT 10").all(),
+			db.prepare("SELECT s.id, s.name, s.slug, s.plan_id, COUNT(o.id) as order_count, COALESCE(SUM(o.total),0) as revenue FROM stores s LEFT JOIN orders o ON o.store_id = s.id GROUP BY s.id ORDER BY revenue DESC LIMIT 5").all(),
+			db.prepare('SELECT COUNT(*) as cnt FROM menu_items').first<{ cnt: number }>(),
+		]);
+
+		// Orders by day (last 7 days)
+		const ordersByDay = await db.prepare(
+			"SELECT date(created_at) as day, COUNT(*) as orders, COALESCE(SUM(total),0) as revenue FROM orders WHERE created_at >= datetime('now', '-7 days') GROUP BY date(created_at) ORDER BY day ASC"
+		).all();
+
+		// Stores created by day (last 30 days)
+		const storesByDay = await db.prepare(
+			"SELECT date(created_at) as day, COUNT(*) as count FROM stores WHERE created_at >= datetime('now', '-30 days') GROUP BY date(created_at) ORDER BY day ASC"
+		).all();
 
 		return c.json({
 			total_stores: storeCount?.cnt || 0,
 			total_users: userCount?.cnt || 0,
 			active_subscriptions: activeSubCount?.cnt || 0,
 			total_revenue: revenueRow?.total || 0,
+			pro_stores: proStores?.cnt || 0,
+			starter_stores: starterStores?.cnt || 0,
+			total_orders: orderCount?.cnt || 0,
+			today_orders: todayOrders?.cnt || 0,
+			today_revenue: todayRevenue?.total || 0,
+			total_menu_items: menuItemCount?.cnt || 0,
+			recent_stores: recentStores.results ?? [],
+			top_stores: topStores.results ?? [],
+			orders_by_day: ordersByDay.results ?? [],
+			stores_by_day: storesByDay.results ?? [],
 		});
 	} catch (e: any) {
-		return c.json({ detail: 'Failed to get dashboard data' }, 500);
+		return c.json({ detail: 'Failed to get dashboard data: ' + e.message }, 500);
 	}
 });
 
@@ -110,21 +148,46 @@ app.get('/stores', superAdminAuth, async (c) => {
 	}
 });
 
-// GET /stores/:store_id
+// GET /stores/:store_id — full detail
 app.get('/stores/:store_id', superAdminAuth, async (c) => {
 	try {
+		const db = c.env.DB;
 		const storeId = c.req.param('store_id');
-		const store = await c.env.DB.prepare('SELECT * FROM stores WHERE id = ?').bind(storeId).first();
+		const store = await db.prepare('SELECT * FROM stores WHERE id = ?').bind(storeId).first();
 		if (!store) return c.json({ detail: 'Store not found' }, 404);
 
-		const subscription = await c.env.DB.prepare(
-			"SELECT * FROM subscriptions WHERE store_id = ? AND status IN ('active','trial') LIMIT 1"
-		).bind(storeId).first();
-		(store as any).subscription = subscription || null;
+		const [owner, subscription, menuCount, categoryCount, tableCount, orderCount, totalRevenue, recentOrders, tables, promotionCount, settings] = await Promise.all([
+			db.prepare('SELECT id, email, name, role, created_at FROM users WHERE store_id = ?').bind(storeId).first(),
+			db.prepare("SELECT * FROM subscriptions WHERE store_id = ? AND status IN ('active','trial') LIMIT 1").bind(storeId).first(),
+			db.prepare('SELECT COUNT(*) as cnt FROM menu_items WHERE store_id = ?').bind(storeId).first<{cnt:number}>(),
+			db.prepare('SELECT COUNT(*) as cnt FROM categories WHERE store_id = ?').bind(storeId).first<{cnt:number}>(),
+			db.prepare('SELECT COUNT(*) as cnt FROM tables WHERE store_id = ?').bind(storeId).first<{cnt:number}>(),
+			db.prepare('SELECT COUNT(*) as cnt FROM orders WHERE store_id = ?').bind(storeId).first<{cnt:number}>(),
+			db.prepare("SELECT COALESCE(SUM(total),0) as total FROM orders WHERE store_id = ?").bind(storeId).first<{total:number}>(),
+			db.prepare('SELECT id, table_number, customer_name, total, status, payment_status, created_at FROM orders WHERE store_id = ? ORDER BY created_at DESC LIMIT 5').bind(storeId).all(),
+			db.prepare('SELECT id, table_number, capacity, status FROM tables WHERE store_id = ? ORDER BY CAST(table_number AS INTEGER) ASC').bind(storeId).all(),
+			db.prepare('SELECT COUNT(*) as cnt FROM promotions WHERE store_id = ?').bind(storeId).first<{cnt:number}>(),
+			db.prepare('SELECT * FROM store_settings WHERE store_id = ?').bind(storeId).first().catch(() => null),
+		]);
 
-		return c.json(store);
+		return c.json({
+			...store,
+			owner: owner || null,
+			subscription: subscription || null,
+			stats: {
+				menu_items: menuCount?.cnt || 0,
+				categories: categoryCount?.cnt || 0,
+				tables: tableCount?.cnt || 0,
+				orders: orderCount?.cnt || 0,
+				total_revenue: totalRevenue?.total || 0,
+				promotions: promotionCount?.cnt || 0,
+			},
+			recent_orders: recentOrders.results ?? [],
+			tables: tables.results ?? [],
+			settings: settings || null,
+		});
 	} catch (e: any) {
-		return c.json({ detail: 'Failed to get store details' }, 500);
+		return c.json({ detail: 'Failed to get store details: ' + e.message }, 500);
 	}
 });
 
@@ -273,8 +336,9 @@ app.get('/users', superAdminAuth, async (c) => {
 		for (const u of (results || [])) {
 			const user: any = { ...u };
 			if (user.store_id) {
-				const store = await c.env.DB.prepare('SELECT name FROM stores WHERE id = ?').bind(user.store_id).first();
+				const store = await c.env.DB.prepare('SELECT name, plan_id FROM stores WHERE id = ?').bind(user.store_id).first();
 				user.store_name = store?.name || null;
+				user.plan_id = store?.plan_id || 'starter';
 			}
 			users.push(user);
 		}
@@ -340,6 +404,68 @@ app.delete('/users/:user_id', superAdminAuth, async (c) => {
 		return c.json({ message: 'User deleted successfully' });
 	} catch (e: any) {
 		return c.json({ detail: 'Failed to delete user' }, 500);
+	}
+});
+
+// PUT /stores/:store_id/upgrade-pro - Upgrade store to PRO plan
+app.put('/stores/:store_id/upgrade-pro', superAdminAuth, async (c) => {
+	try {
+		const storeId = c.req.param('store_id');
+		const now = new Date().toISOString();
+
+		const store = await c.env.DB.prepare('SELECT id, plan_id FROM stores WHERE id = ?').bind(storeId).first() as any;
+		if (!store) return c.json({ detail: 'Store not found' }, 404);
+		if (store.plan_id === 'pro') return c.json({ detail: 'Store is already on PRO plan' }, 400);
+
+		// Update store to PRO
+		await c.env.DB.prepare(
+			'UPDATE stores SET plan_id = ?, max_tables = 999, updated_at = ? WHERE id = ?'
+		).bind('pro', now, storeId).run();
+
+		// Create or update subscription
+		const existingSub = await c.env.DB.prepare(
+			'SELECT subscription_id FROM subscriptions WHERE store_id = ?'
+		).bind(storeId).first();
+
+		if (existingSub) {
+			await c.env.DB.prepare(
+				"UPDATE subscriptions SET plan_id = 'pro', status = 'active', updated_at = ? WHERE store_id = ?"
+			).bind(now, storeId).run();
+		} else {
+			const { generateId } = await import('../utils/crypto');
+			const subId = generateId();
+			await c.env.DB.prepare(
+				"INSERT INTO subscriptions (subscription_id, store_id, plan_id, status, created_at, updated_at) VALUES (?, ?, 'pro', 'active', ?, ?)"
+			).bind(subId, storeId, now, now).run();
+		}
+
+		return c.json({ success: true, message: 'Store upgraded to PRO successfully' });
+	} catch (e: any) {
+		return c.json({ detail: e.message || 'Failed to upgrade store' }, 500);
+	}
+});
+
+// PUT /stores/:store_id/downgrade-starter - Downgrade store to STARTER plan
+app.put('/stores/:store_id/downgrade-starter', superAdminAuth, async (c) => {
+	try {
+		const storeId = c.req.param('store_id');
+		const now = new Date().toISOString();
+
+		const store = await c.env.DB.prepare('SELECT id, plan_id FROM stores WHERE id = ?').bind(storeId).first() as any;
+		if (!store) return c.json({ detail: 'Store not found' }, 404);
+		if (store.plan_id === 'starter') return c.json({ detail: 'Store is already on STARTER plan' }, 400);
+
+		await c.env.DB.prepare(
+			'UPDATE stores SET plan_id = ?, max_tables = 10, updated_at = ? WHERE id = ?'
+		).bind('starter', now, storeId).run();
+
+		await c.env.DB.prepare(
+			"UPDATE subscriptions SET plan_id = 'starter', status = 'active', updated_at = ? WHERE store_id = ?"
+		).bind(now, storeId).run();
+
+		return c.json({ success: true, message: 'Store downgraded to STARTER successfully' });
+	} catch (e: any) {
+		return c.json({ detail: e.message || 'Failed to downgrade store' }, 500);
 	}
 });
 

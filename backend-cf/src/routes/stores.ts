@@ -50,7 +50,7 @@ app.get('/categories', authMiddleware, async (c) => {
 	const { results } = await c.env.DB.prepare(
 		'SELECT * FROM categories WHERE store_id = ? ORDER BY display_order ASC'
 	).bind(user.store_id).all();
-	return c.json(results);
+	return c.json(results ?? []);
 });
 
 // POST /categories
@@ -109,7 +109,7 @@ app.get('/menu-items', authMiddleware, async (c) => {
 		'SELECT * FROM promotions WHERE store_id = ? AND is_active = 1 AND start_date <= ? AND end_date >= ?'
 	).bind(user.store_id, now, now).all();
 
-	const items = applyPromotions(results, promotions);
+	const items = applyPromotions(results ?? [], promotions ?? []);
 	return c.json(items);
 });
 

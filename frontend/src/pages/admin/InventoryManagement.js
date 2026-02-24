@@ -44,11 +44,15 @@ import {
 } from '../../components/ui/select';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import api from '../../utils/api';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '../../components/ui/confirm-dialog';
+import { useLoading } from '../../contexts/LoadingContext';
 
 const InventoryManagement = () => {
+  const { showLoading, hideLoading } = useLoading();
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'danger' });
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
@@ -95,13 +99,13 @@ const InventoryManagement = () => {
 
   const fetchInventory = async () => {
     try {
-      setLoading(true);
+      showLoading('Đang tải dữ liệu...');
       const response = await api.get('/inventory-dishes');
-      setInventory(response.data);
+      setInventory(response.data || []);
     } catch (error) {
       console.error('Error fetching inventory:', error);
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -147,7 +151,7 @@ const InventoryManagement = () => {
       fetchInventory();
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi thêm món vào kho');
+      toast.error(error.response?.data?.detail || 'Lỗi khi thêm món vào kho');
     }
   };
 
@@ -160,7 +164,7 @@ const InventoryManagement = () => {
       fetchInventory();
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi cập nhật món');
+      toast.error(error.response?.data?.detail || 'Lỗi khi cập nhật món');
     }
   };
 
@@ -173,20 +177,28 @@ const InventoryManagement = () => {
       fetchInventory();
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi điều chỉnh số lượng');
+      toast.error(error.response?.data?.detail || 'Lỗi khi điều chỉnh số lượng');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa món này khỏi kho?')) return;
-
-    try {
-      await api.delete(`/inventory-dishes/${id}`);
-      fetchInventory();
-      fetchStats();
-    } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi xóa món');
-    }
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa món khỏi kho',
+      description: 'Bạn có chắc chắn muốn xóa món này khỏi kho?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/inventory-dishes/${id}`);
+          fetchInventory();
+          fetchStats();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          toast.error(error.response?.data?.detail || 'Lỗi khi xóa món');
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   const openEditDialog = (item) => {
@@ -220,7 +232,7 @@ const InventoryManagement = () => {
   const fetchMenuItems = async () => {
     try {
       const response = await api.get('/menu-items');
-      setMenuItems(response.data);
+      setMenuItems(response.data || []);
     } catch (error) {
       console.error('Error fetching menu items:', error);
     }
@@ -231,13 +243,13 @@ const InventoryManagement = () => {
       const data = JSON.parse(importJson);
       
       if (!data.items || !Array.isArray(data.items)) {
-        alert('JSON không đúng định dạng. Cần có trường "items" là một mảng');
+        toast.error('JSON không đúng định dạng. Cần có trường "items" là một mảng');
         return;
       }
 
       const response = await api.post('/inventory-dishes/bulk-import', data);
       
-      alert(`Thành công: ${response.data.items_success} món, Lỗi: ${response.data.items_failed} món`);
+      toast.success(`Thành công: ${response.data.items_success} món, Lỗi: ${response.data.items_failed} món`);
       
       if (response.data.errors && response.data.errors.length > 0) {
         console.log('Errors:', response.data.errors);
@@ -249,9 +261,9 @@ const InventoryManagement = () => {
       fetchStats();
     } catch (error) {
       if (error.message.includes('JSON')) {
-        alert('Lỗi: JSON không hợp lệ. Vui lòng kiểm tra lại cú pháp.');
+        toast.error('JSON không hợp lệ. Vui lòng kiểm tra lại cú pháp.');
       } else {
-        alert(error.response?.data?.detail || 'Lỗi khi import dữ liệu');
+        toast.error(error.response?.data?.detail || 'Lỗi khi import dữ liệu');
       }
     }
   };
@@ -266,7 +278,7 @@ const InventoryManagement = () => {
       });
 
       if (menuItemsNotInInventory.length === 0) {
-        alert('Tất cả món trong menu đã có trong kho!');
+        toast.info('Tất cả món trong menu đã có trong kho!');
         setShowSyncDialog(false);
         return;
       }
@@ -291,12 +303,12 @@ const InventoryManagement = () => {
         items: inventoryItems
       });
 
-      alert(`Đã đồng bộ ${response.data.items_success} món từ menu!`);
+      toast.success(`Đã đồng bộ ${response.data.items_success} món từ menu!`);
       setShowSyncDialog(false);
       fetchInventory();
       fetchStats();
     } catch (error) {
-      alert(error.response?.data?.detail || 'Lỗi khi đồng bộ dữ liệu');
+      toast.error(error.response?.data?.detail || 'Lỗi khi đồng bộ dữ liệu');
     }
   };
 
@@ -321,16 +333,25 @@ const InventoryManagement = () => {
     URL.revokeObjectURL(url);
   };
 
-  const handleDeleteAll = async () => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ kho hàng? Hành động này không thể hoàn tác!')) return;
-    try {
-      await api.delete('/inventory-dishes/delete-all');
-      toast.success('Đã xóa toàn bộ kho hàng');
-      fetchInventory();
-      fetchStats();
-    } catch (error) {
-      toast.error('Lỗi khi xóa kho hàng');
-    }
+  const handleDeleteAll = () => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa toàn bộ kho',
+      description: 'Bạn có chắc chắn muốn xóa TOÀN BỘ kho hàng? Hành động này không thể hoàn tác!',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete('/inventory-dishes/delete-all');
+          toast.success('Đã xóa toàn bộ kho hàng');
+          fetchInventory();
+          fetchStats();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          toast.error('Lỗi khi xóa kho hàng');
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
   };
 
   const getStockStatusBadge = (item) => {
@@ -343,13 +364,6 @@ const InventoryManagement = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -961,6 +975,14 @@ const InventoryManagement = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+      />
     </div>
   );
 };

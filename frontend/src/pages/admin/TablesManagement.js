@@ -12,13 +12,16 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Edit, Trash2, Loader2, QrCode, Download, Crown, Info } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, QrCode, Download, Crown, Info, DoorOpen, DoorClosed } from "lucide-react";
 import api from "@/utils/api";
 import { toast } from "sonner";
+import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import { useLoading } from "../../contexts/LoadingContext";
 
 const TablesManagement = () => {
   const [tables, setTables] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, title: '', description: '', onConfirm: null, variant: 'danger' });
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTable, setEditingTable] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
@@ -47,11 +50,11 @@ const TablesManagement = () => {
   const fetchTables = async () => {
     try {
       const response = await api.get("/tables");
-      setTables(response.data);
+      setTables(response.data || []);
     } catch (error) {
       toast.error("Không thể tải danh sách bàn");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -74,14 +77,35 @@ const TablesManagement = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Bạn có chắc muốn xóa bàn này?")) return;
+  const handleDelete = (id) => {
+    setConfirmDialog({
+      open: true,
+      title: 'Xóa bàn',
+      description: 'Bạn có chắc chắn muốn xóa bàn này?',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await api.delete(`/tables/${id}`);
+          toast.success("Xóa bàn thành công");
+          fetchTables();
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        } catch (error) {
+          toast.error("Không thể xóa bàn");
+          setConfirmDialog(prev => ({ ...prev, open: false }));
+        }
+      }
+    });
+  };
+
+  const toggleTableStatus = async (table) => {
+    const newStatus = table.status === "occupied" ? "available" : "occupied";
+    const label = newStatus === "occupied" ? "Mở bàn" : "Đóng bàn";
     try {
-      await api.delete(`/tables/${id}`);
-      toast.success("Xóa bàn thành công");
+      await api.put(`/tables/${table.id}`, { status: newStatus });
+      toast.success(`${label} ${table.table_number} thành công`);
       fetchTables();
     } catch (error) {
-      toast.error("Không thể xóa bàn");
+      toast.error(`Không thể ${label.toLowerCase()}`);
     }
   };
 
@@ -136,13 +160,6 @@ const TablesManagement = () => {
     toast.success(`Đã tải ${tables.length} mã QR`);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">
@@ -239,6 +256,23 @@ const TablesManagement = () => {
                   <p>Số chỗ ngồi: {table.capacity} người</p>
                 </div>
 
+                {/* Toggle open/close */}
+                <Button
+                  size="sm"
+                  className={`w-full ${
+                    table.status === "occupied"
+                      ? "bg-amber-500 hover:bg-amber-600 text-white"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  }`}
+                  onClick={() => toggleTableStatus(table)}
+                >
+                  {table.status === "occupied" ? (
+                    <><DoorClosed className="h-4 w-4 mr-2" />Đóng bàn</>
+                  ) : (
+                    <><DoorOpen className="h-4 w-4 mr-2" />Mở bàn</>
+                  )}
+                </Button>
+
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -316,6 +350,14 @@ const TablesManagement = () => {
           )}
         </DialogContent>
       </Dialog>
+      <ConfirmDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+        title={confirmDialog.title}
+        description={confirmDialog.description}
+        variant={confirmDialog.variant}
+        onConfirm={confirmDialog.onConfirm}
+      />
     </div>
   );
 };

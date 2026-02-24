@@ -1,5 +1,6 @@
 export type Env = {
 	DB: D1Database;
+	AI: any;
 	ENVIRONMENT: string;
 	FRONTEND_URL: string;
 	JWT_SECRET: string;

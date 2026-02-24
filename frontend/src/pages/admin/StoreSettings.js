@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLoading } from "../../contexts/LoadingContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,7 @@ import { toast } from "sonner";
 import { getAuthUser } from "@/utils/auth";
 
 const StoreSettings = () => {
-  const [loading, setLoading] = useState(true);
+  const { showLoading, hideLoading } = useLoading();
   const [saving, setSaving] = useState(false);
   const [store, setStore] = useState(null);
   const user = getAuthUser();
@@ -20,13 +21,14 @@ const StoreSettings = () => {
   }, []);
 
   const fetchStore = async () => {
+    showLoading('Đang tải dữ liệu...');
     try {
       const response = await api.get("/stores/me");
       setStore(response.data);
     } catch (error) {
       toast.error("Không thể tải thông tin cửa hàng");
     } finally {
-      setLoading(false);
+      hideLoading();
     }
   };
 
@@ -49,15 +51,9 @@ const StoreSettings = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
-      </div>
-    );
-  }
 
-  const menuUrl = `${window.location.origin}/menu/${store.slug}`;
+  if (!store) return null;
+  const menuUrl = `${window.location.origin}/menu/${store?.slug || ''}`;
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">

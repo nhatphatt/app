@@ -15,6 +15,7 @@ const ChatbotWidget = ({
   tableId,
   cart,
   onAddToCart,
+  onCheckout,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -72,6 +73,22 @@ const ChatbotWidget = ({
       };
 
       setMessages((prev) => [...prev, botMessage]);
+
+      // Handle client-side actions
+      if (response.data.actions?.length) {
+        for (const action of response.data.actions) {
+          if (action.type === "add_to_cart" && onAddToCart) {
+            onAddToCart({
+              id: action.item.id,
+              name: action.item.name,
+              price: action.item.price,
+              image_url: action.item.image_url,
+            }, action.item.quantity || 1);
+          } else if (action.type === "open_checkout" && onCheckout) {
+            setTimeout(() => onCheckout(), 500);
+          }
+        }
+      }
     } catch (error) {
       console.error("Chatbot error:", error);
 
@@ -103,43 +120,31 @@ const ChatbotWidget = ({
     sendMessage(payload);
   };
 
-  const handleAddToCart = async (item) => {
-    try {
-      // Call backend action API to track in conversation
-      await axios.post(
-        `${BACKEND_URL}/api/chatbot/action?store_slug=${storeSlug}`,
-        {
-          action_type: "add_to_cart",
-          action_payload: {
-            item_id: item.item_id || item.id,
-            quantity: 1,
-          },
-          session_id: sessionId,
-        },
-      );
-
-      // Update parent component cart
-      if (onAddToCart) {
-        // Transform chatbot item to menu item format
-        const menuItem = {
-          id: item.item_id || item.id,
-          name: item.name,
-          price: item.has_promotion ? item.discounted_price : item.price,
-          discounted_price: item.discounted_price,
-          has_promotion: item.has_promotion,
-          promotion_label: item.promotion_label,
-          image_url: item.image_url,
-          description: item.description,
-        };
-        onAddToCart(menuItem);
-
-        // Show success message
-        toast.success(`Đã thêm ${item.name} vào giỏ hàng!`);
-      }
-    } catch (error) {
-      console.error("Add to cart error:", error);
-      toast.error("Không thể thêm món vào giỏ hàng. Vui lòng thử lại!");
+  const handleAddToCart = (item) => {
+    // Add to parent cart immediately
+    if (onAddToCart) {
+      const menuItem = {
+        id: item.item_id || item.id,
+        name: item.name,
+        price: item.has_promotion && item.discounted_price ? item.discounted_price : item.price,
+        discounted_price: item.discounted_price,
+        has_promotion: item.has_promotion,
+        promotion_label: item.promotion_label,
+        image_url: item.image_url,
+        description: item.description,
+      };
+      onAddToCart(menuItem);
     }
+
+    // Track in conversation (fire & forget)
+    axios.post(
+      `${BACKEND_URL}/api/chatbot/action?store_slug=${storeSlug}`,
+      {
+        action_type: "add_to_cart",
+        action_payload: { item_id: item.item_id || item.id, quantity: 1 },
+        session_id: sessionId,
+      }
+    ).catch(() => {});
   };
 
   const renderMessage = (message, index) => {
@@ -159,7 +164,7 @@ const ChatbotWidget = ({
           <div className="whitespace-pre-wrap">{message.content}</div>
 
           {/* Rich content - Menu items carousel */}
-          {message.rich_content?.type === "menu_items_carousel" && (
+          {(message.rich_content?.type === "carousel" || message.rich_content?.type === "menu_items_carousel") && (
             <div className="mt-3 space-y-3">
               {message.rich_content.items.map((item, idx) => (
                 <div
@@ -277,7 +282,7 @@ const ChatbotWidget = ({
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 z-50 w-[380px] h-[600px] bg-white rounded-lg shadow-2xl flex flex-col border border-gray-200">
+        <div className="fixed bottom-0 right-0 sm:bottom-6 sm:right-6 z-50 w-full sm:w-[380px] h-full sm:h-[600px] bg-white sm:rounded-lg shadow-2xl flex flex-col border border-gray-200">
           {/* Header */}
           <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 rounded-t-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -312,6 +317,26 @@ const ChatbotWidget = ({
             )}
 
             <div ref={messagesEndRef} />
+
+            {/* Suggested starter prompts */}
+            {messages.length <= 2 && !isLoading && (
+              <div className="flex flex-wrap gap-2 mt-2 mb-4">
+                {[
+                  "📋 Cho tôi xem menu",
+                  "🍴 Gợi ý món ngon",
+                  "💰 Có khuyến mãi gì không?",
+                  "🛒 Xem giỏ hàng",
+                ].map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => sendMessage(prompt.replace(/^[^\s]+ /, ""))}
+                    className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-3 py-1.5 transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
           </ScrollArea>
 
           {/* Input Area */}
