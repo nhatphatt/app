@@ -269,7 +269,7 @@ app.get('/tables', authMiddleware, async (c) => {
 	const frontendUrl = c.req.header('x-frontend-url') || c.env.FRONTEND_URL;
 
 	const tables = await c.env.DB.prepare(
-		'SELECT * FROM tables WHERE store_id = ? ORDER BY table_number ASC'
+		'SELECT * FROM tables WHERE store_id = ? ORDER BY CAST(table_number AS INTEGER) ASC, table_number ASC'
 	).bind(user.store_id).all();
 
 	// Ensure qr_code_url is set for all tables
