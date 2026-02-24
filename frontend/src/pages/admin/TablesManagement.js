@@ -113,6 +113,29 @@ const TablesManagement = () => {
     link.click();
   };
 
+  const downloadAllQRCodes = async () => {
+    if (tables.length === 0) return;
+    toast.info(`Đang tải ${tables.length} mã QR...`);
+    for (const table of tables) {
+      if (!table.qr_code_url) continue;
+      try {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(table.qr_code_url)}`;
+        const response = await fetch(qrUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `qr-ban-${table.table_number}.png`;
+        link.click();
+        window.URL.revokeObjectURL(url);
+        await new Promise(r => setTimeout(r, 300));
+      } catch (e) {
+        console.error(`Lỗi tải QR bàn ${table.table_number}`, e);
+      }
+    }
+    toast.success(`Đã tải ${tables.length} mã QR`);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -128,7 +151,14 @@ const TablesManagement = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Quản lý Bàn</h1>
           <p className="text-gray-600">Tạo và quản lý bàn với mã QR riêng</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div className="flex items-center gap-3">
+          {tables.length > 0 && (
+            <Button variant="outline" onClick={downloadAllQRCodes}>
+              <Download className="h-4 w-4 mr-2" />
+              Tải tất cả QR ({tables.length})
+            </Button>
+          )}
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button
               className="bg-emerald-600 hover:bg-emerald-700"
@@ -181,6 +211,7 @@ const TablesManagement = () => {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {tables.length === 0 ? (
