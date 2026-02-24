@@ -184,10 +184,6 @@ const AdminLayout = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Header */}
-        <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-          <div></div>
-        </header>
 
         {/* Page Content */}
         <main className="flex-1 overflow-auto p-6">
