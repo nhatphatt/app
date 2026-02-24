@@ -321,6 +321,18 @@ const InventoryManagement = () => {
     URL.revokeObjectURL(url);
   };
 
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa TOÀN BỘ kho hàng? Hành động này không thể hoàn tác!')) return;
+    try {
+      await api.delete('/inventory-dishes/delete-all');
+      toast.success('Đã xóa toàn bộ kho hàng');
+      fetchInventory();
+      fetchStats();
+    } catch (error) {
+      toast.error('Lỗi khi xóa kho hàng');
+    }
+  };
+
   const getStockStatusBadge = (item) => {
     if (item.quantity_in_stock === 0) {
       return <Badge variant="destructive">Hết hàng</Badge>;
@@ -360,6 +372,12 @@ const InventoryManagement = () => {
             <Download className="w-4 h-4 mr-2" />
             Export JSON
           </Button>
+          {inventory.length > 0 && (
+            <Button variant="destructive" onClick={handleDeleteAll}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Xóa tất cả
+            </Button>
+          )}
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="w-4 h-4 mr-2" />
             Thêm Món

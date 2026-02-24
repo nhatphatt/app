@@ -243,4 +243,16 @@ app.post('/bulk-import', authMiddleware, async (c) => {
 	}
 });
 
+// DELETE /inventory-dishes/delete-all
+app.delete('/delete-all', authMiddleware, async (c) => {
+	try {
+		const user = c.get('user');
+		const db = c.env.DB;
+		await db.prepare('DELETE FROM dishes_inventory WHERE store_id = ?').bind(user.store_id).run();
+		return c.json({ message: 'Đã xóa toàn bộ kho hàng' });
+	} catch (error) {
+		return c.json({ detail: 'Lỗi khi xóa kho hàng' }, 500);
+	}
+});
+
 export default app;
