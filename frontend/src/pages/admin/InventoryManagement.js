@@ -773,6 +773,20 @@ const InventoryManagement = () => {
                   setAdjustmentData({ ...adjustmentData, quantity: parseInt(e.target.value) || 0 })
                 }
               />
+              <div className="flex gap-2 mt-2">
+                {[10, 20, 50, 100, 200].map((num) => (
+                  <Button
+                    key={num}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setAdjustmentData({ ...adjustmentData, quantity: num })}
+                  >
+                    {num}
+                  </Button>
+                ))}
+              </div>
             </div>
 
             <div>

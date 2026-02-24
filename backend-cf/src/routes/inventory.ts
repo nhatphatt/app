@@ -193,6 +193,17 @@ app.get('/:item_id/history', authMiddleware, async (c) => {
 	}
 });
 
+// DELETE /inventory-dishes/delete-all
+app.delete('/delete-all', authMiddleware, async (c) => {
+	try {
+		const user = c.get('user');
+		await c.env.DB.prepare('DELETE FROM dishes_inventory WHERE store_id = ?').bind(user.store_id).run();
+		return c.json({ message: 'Đã xóa toàn bộ kho hàng' });
+	} catch (error) {
+		return c.json({ detail: 'Lỗi khi xóa kho hàng' }, 500);
+	}
+});
+
 // DELETE /inventory-dishes/:item_id
 app.delete('/:item_id', authMiddleware, async (c) => {
 	try {
@@ -240,18 +251,6 @@ app.post('/bulk-import', authMiddleware, async (c) => {
 		return c.json({ items_success: createdItems.length, items_failed: errors.length, created_items: createdItems, errors });
 	} catch (e: any) {
 		return c.json({ detail: e.message }, 500);
-	}
-});
-
-// DELETE /inventory-dishes/delete-all
-app.delete('/delete-all', authMiddleware, async (c) => {
-	try {
-		const user = c.get('user');
-		const db = c.env.DB;
-		await db.prepare('DELETE FROM dishes_inventory WHERE store_id = ?').bind(user.store_id).run();
-		return c.json({ message: 'Đã xóa toàn bộ kho hàng' });
-	} catch (error) {
-		return c.json({ detail: 'Lỗi khi xóa kho hàng' }, 500);
 	}
 });
 
