@@ -781,7 +781,7 @@ const StaffManagement = () => {
 
       {/* Employee Dialog */}
       <Dialog open={showEmployeeDialog} onOpenChange={setShowEmployeeDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingEmployee ? 'Chỉnh Sửa Nhân Viên' : 'Thêm Nhân Viên Mới'}</DialogTitle>
             <DialogDescription>Nhập thông tin nhân viên</DialogDescription>
@@ -876,7 +876,7 @@ const StaffManagement = () => {
 
       {/* Shift Dialog */}
       <Dialog open={showShiftDialog} onOpenChange={setShowShiftDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingShift ? 'Chỉnh Sửa Ca Làm' : 'Thêm Ca Làm Việc'}</DialogTitle>
             <DialogDescription>Phân ca làm việc cho nhân viên</DialogDescription>
@@ -956,7 +956,7 @@ const StaffManagement = () => {
 
       {/* Bulk Shift Dialog */}
       <Dialog open={showBulkShiftDialog} onOpenChange={setShowBulkShiftDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Tạo Ca Làm Việc Hàng Loạt</DialogTitle>
             <DialogDescription>Tạo ca làm việc cho nhiều nhân viên cùng lúc</DialogDescription>

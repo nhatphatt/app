@@ -141,7 +141,7 @@ const TablesManagement = () => {
               Thêm bàn
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingTable ? "Sửa bàn" : "Thêm bàn mới"}

@@ -543,7 +543,7 @@ const InventoryManagement = () => {
 
       {/* Add Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Thêm Món Vào Kho</DialogTitle>
             <DialogDescription>Nhập thông tin món ăn mới vào kho</DialogDescription>
@@ -631,7 +631,7 @@ const InventoryManagement = () => {
 
       {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Chỉnh Sửa Món</DialogTitle>
             <DialogDescription>Cập nhật thông tin món trong kho</DialogDescription>
@@ -718,7 +718,7 @@ const InventoryManagement = () => {
 
       {/* Adjust Quantity Dialog */}
       <Dialog open={showAdjustDialog} onOpenChange={setShowAdjustDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Điều Chỉnh Số Lượng</DialogTitle>
             <DialogDescription>
@@ -786,7 +786,7 @@ const InventoryManagement = () => {
       </Dialog>
       {/* Import JSON Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Import JSON - Nhập Hàng Loạt</DialogTitle>
             <DialogDescription>
@@ -842,7 +842,7 @@ const InventoryManagement = () => {
 
       {/* Sync from Menu Dialog */}
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               <div className="flex items-center gap-2">
