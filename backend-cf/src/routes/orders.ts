@@ -239,6 +239,11 @@ app.put('/orders/:id/status', authMiddleware, async (c) => {
 	if (status) {
 		updates.push('status = ?');
 		values.push(status);
+		// Auto-mark as paid when completing order with processing payment (bank transfer completed)
+		if (status === 'completed' && !payment_status && (order.payment_status === 'processing' || order.payment_status === 'pending')) {
+			updates.push('payment_status = ?');
+			values.push('paid');
+		}
 	}
 	if (payment_status) {
 		updates.push('payment_status = ?');

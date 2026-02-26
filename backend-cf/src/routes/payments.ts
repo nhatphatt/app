@@ -92,6 +92,31 @@ app.post('/initiate', async (c) => {
 	}
 });
 
+// POST /payments/:payment_id/customer-confirm
+// Customer reports they have completed bank transfer - marks for admin review
+app.post('/:payment_id/customer-confirm', async (c) => {
+	const payment_id = c.req.param('payment_id');
+
+	const payment = await c.env.DB.prepare(
+		"SELECT * FROM payments WHERE id = ? AND method = 'bank_qr'"
+	).bind(payment_id).first();
+
+	if (!payment) return c.json({ detail: 'Payment not found' }, 404);
+	if (payment.status === 'paid') return c.json({ status: 'already_paid' });
+	if (payment.status !== 'pending') return c.json({ detail: 'Payment cannot be confirmed' }, 400);
+
+	const now = new Date().toISOString();
+	await c.env.DB.prepare(
+		"UPDATE payments SET status = 'customer_confirmed', updated_at = ? WHERE id = ?"
+	).bind(now, payment_id).run();
+
+	await c.env.DB.prepare(
+		"UPDATE orders SET payment_status = 'customer_confirmed' WHERE id = ?"
+	).bind(payment.order_id).run();
+
+	return c.json({ status: 'customer_confirmed', message: 'Đã báo thanh toán. Nhân viên sẽ xác nhận.' });
+});
+
 // GET /payments/:payment_id
 app.get('/:payment_id', authMiddleware, async (c) => {
 	const user = c.get('user');

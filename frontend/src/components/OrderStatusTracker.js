@@ -102,6 +102,16 @@ const OrderStatusTracker = ({ orderId, open, onClose }) => {
         <Badge className="bg-green-100 text-green-700">✓ Đã thanh toán</Badge>
       );
     }
+    if (paymentStatus === "customer_confirmed") {
+      return (
+        <Badge className="bg-blue-100 text-blue-700">⏳ Chờ xác nhận</Badge>
+      );
+    }
+    if (paymentStatus === "processing") {
+      return (
+        <Badge className="bg-orange-100 text-orange-700">Đang xử lý</Badge>
+      );
+    }
     return (
       <Badge className="bg-yellow-100 text-yellow-700">Chưa thanh toán</Badge>
     );

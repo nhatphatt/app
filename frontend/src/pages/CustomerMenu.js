@@ -28,6 +28,7 @@ import {
   Loader2,
   CreditCard,
   UtensilsCrossed,
+  Banknote,
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
@@ -58,6 +59,7 @@ const CustomerMenu = () => {
   const [tableInfo, setTableInfo] = useState(null);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentChoiceOpen, setPaymentChoiceOpen] = useState(false);
   const [statusTrackerOpen, setStatusTrackerOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -304,12 +306,12 @@ const CustomerMenu = () => {
         orderPayload,
       );
 
-      // Save order and open payment dialog
+      // Save order and show payment choice dialog
       setCurrentOrder(response.data);
       setCheckoutOpen(false);
-      setPaymentOpen(true);
+      setPaymentChoiceOpen(true);
 
-      toast.success("Đặt món thành công! Vui lòng thanh toán");
+      toast.success("Đặt món thành công!");
     } catch (error) {
       toast.error("Đặt hàng thất bại");
     } finally {
@@ -341,15 +343,52 @@ const CustomerMenu = () => {
     localStorage.removeItem(`minitake_cart_${storeSlug}`);
   };
 
+  const handlePayNow = () => {
+    setPaymentChoiceOpen(false);
+    setPaymentOpen(true);
+  };
+
+  const handlePayLater = () => {
+    setPaymentChoiceOpen(false);
+    if (currentOrder?.id) {
+      setTrackingOrderId(currentOrder.id);
+      setStatusTrackerOpen(true);
+    }
+    setCart([]);
+    setCustomerInfo({
+      customer_name: "",
+      customer_phone: "",
+      table_number: "",
+      note: "",
+    });
+    localStorage.removeItem(`minitake_cart_${storeSlug}`);
+    setCurrentOrder(null);
+    toast.info("Đơn hàng đã được tạo. Bạn có thể thanh toán sau tại quầy.");
+  };
+
   const handlePaymentCancel = () => {
     setPaymentOpen(false);
+
+    // Open order tracker so customer can track their unpaid order
+    if (currentOrder?.id) {
+      setTrackingOrderId(currentOrder.id);
+      setStatusTrackerOpen(true);
+    }
+
     setCurrentOrder(null);
+    setCart([]);
+    setCustomerInfo({
+      customer_name: "",
+      customer_phone: "",
+      table_number: "",
+      note: "",
+    });
 
-    // Clear localStorage when user cancels payment
+    // Clear localStorage
     localStorage.removeItem(`minitake_payment_${storeSlug}`);
+    localStorage.removeItem(`minitake_cart_${storeSlug}`);
 
-    // Order is still created, just not paid yet
-    toast.info("Bạn có thể thanh toán sau");
+    toast.info("Đơn hàng đã được tạo. Bạn có thể thanh toán sau tại quầy.");
   };
 
   const filteredItems =
@@ -737,7 +776,7 @@ const CustomerMenu = () => {
                     table_number: e.target.value,
                   })
                 }
-                placeholder="Bàn 5"
+                placeholder="Nhập số bàn"
                 disabled={!!tableInfo}
                 className="focus-visible:ring-primary"
               />
@@ -782,6 +821,38 @@ const CustomerMenu = () => {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Choice Dialog */}
+      <Dialog open={paymentChoiceOpen} onOpenChange={setPaymentChoiceOpen}>
+        <DialogContent className="max-w-sm theme-customer">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl">Chọn phương thức</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 mt-2">
+            <p className="text-center text-muted-foreground text-sm">
+              Tổng: <span className="font-bold text-foreground">{currentOrder?.total?.toLocaleString()}đ</span>
+            </p>
+            <Button
+              className="w-full h-14 text-base bg-primary hover:bg-primary/90 text-primary-foreground gap-3"
+              onClick={handlePayNow}
+            >
+              <CreditCard className="h-5 w-5" />
+              Thanh toán ngay
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-14 text-base gap-3 border-2"
+              onClick={handlePayLater}
+            >
+              <Banknote className="h-5 w-5" />
+              Thanh toán sau
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              Thanh toán sau: đơn hàng sẽ ở trạng thái &quot;Chờ xử lý&quot; cho đến khi thanh toán hoàn tất.
+            </p>
+          </div>
         </DialogContent>
       </Dialog>
 

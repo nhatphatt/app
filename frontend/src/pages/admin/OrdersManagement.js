@@ -94,6 +94,31 @@ const OrdersManagement = () => {
     );
   };
 
+  const getPaymentStatusBadge = (status) => {
+    const config = {
+      paid: { label: "✓ Đã thanh toán", color: "text-green-600 bg-green-50" },
+      customer_confirmed: { label: "⏳ Khách báo đã CK", color: "text-blue-600 bg-blue-50" },
+      processing: { label: "Đang xử lý", color: "text-orange-600 bg-orange-50" },
+      pending: { label: "Chưa thanh toán", color: "text-yellow-600 bg-yellow-50" },
+    };
+    const c = config[status] || config.pending;
+    return (
+      <Badge variant="outline" className={c.color}>
+        {c.label}
+      </Badge>
+    );
+  };
+
+  const handleConfirmPayment = async (orderId) => {
+    try {
+      await api.put(`/orders/${orderId}/status`, { payment_status: "paid" });
+      toast.success("Đã xác nhận thanh toán");
+      fetchOrders();
+    } catch (error) {
+      toast.error("Không thể xác nhận thanh toán");
+    }
+  };
+
 
   return (
     <div className="p-8 space-y-6 animate-fade-in">
@@ -188,6 +213,16 @@ const OrdersManagement = () => {
                     Tổng: {order.total.toLocaleString("vi-VN")} đ
                   </div>
                   <div className="flex items-center gap-3">
+                    {(order.payment_status === "customer_confirmed" || order.payment_status === "pending" || order.payment_status === "processing") && order.payment_status !== "paid" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-300 text-green-700 hover:bg-green-50"
+                        onClick={() => handleConfirmPayment(order.id)}
+                      >
+                        Xác nhận thanh toán
+                      </Button>
+                    )}
                     <Select
                       value={order.status}
                       onValueChange={(value) =>

@@ -16,6 +16,7 @@ import {
   Zap,
   Crown,
   Play,
+  Building,
 } from "lucide-react";
 
 const HomePage = () => {
@@ -151,7 +152,7 @@ const HomePage = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate("/menu/cafe-abc?table=1")}
+              onClick={() => navigate("/menu/cafe-abc")}
               className="h-13 px-8 rounded-xl text-base border-gray-200 text-gray-700 hover:bg-gray-50"
             >
               <Play className="w-4 h-4 mr-2" />
@@ -282,7 +283,7 @@ const HomePage = () => {
 
       {/* ─── Pricing ─── */}
       <section id="pricing" className="py-20 px-6 bg-gray-50">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               Bảng giá đơn giản, minh bạch
@@ -292,7 +293,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {/* Starter */}
             <div className="bg-white rounded-2xl p-8 border border-gray-200 flex flex-col">
               <div className="flex items-center gap-3 mb-4">
@@ -376,6 +377,51 @@ const HomePage = () => {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
+
+            {/* Doanh nghiệp */}
+            <div className="bg-white rounded-2xl p-8 border-2 border-gray-900 flex flex-col relative overflow-hidden">
+              <div className="absolute top-4 right-4 bg-gray-900 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                Chuỗi quán
+              </div>
+              <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-gray-100 rounded-full" />
+
+              <div className="flex items-center gap-3 mb-4 relative z-10">
+                <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center">
+                  <Building className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg">Doanh nghiệp</h3>
+                  <p className="text-xs text-gray-400">Chuỗi 2-3 chi nhánh</p>
+                </div>
+              </div>
+              <div className="mb-6 relative z-10">
+                <span className="text-4xl font-bold">399.000đ</span>
+                <span className="text-gray-400 ml-1">/tháng</span>
+              </div>
+              <ul className="space-y-3 mb-8 flex-1 relative z-10">
+                {[
+                  "Tất cả tính năng Pro",
+                  "Quản lý 2-3 chi nhánh",
+                  "Quản lý nhiều khu vực",
+                  "Báo cáo tổng hợp chuỗi",
+                  "Hỗ trợ ưu tiên 24/7",
+                  "Tùy chỉnh thương hiệu",
+                ].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2.5 text-sm text-gray-600">
+                    <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/admin/register")}
+                className="w-full h-12 rounded-xl border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white font-semibold relative z-10 transition-colors"
+              >
+                Liên hệ tư vấn
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
           </div>
         </div>
       </section>
@@ -400,7 +446,7 @@ const HomePage = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate("/menu/cafe-abc?table=1")}
+              onClick={() => navigate("/menu/cafe-abc")}
               className="h-13 px-8 rounded-xl text-base border-gray-200"
             >
               Xem demo trước
